@@ -3,11 +3,18 @@
   import CreateCampaign from './components/CreateCampaign.svelte'
   import OfferEditor from './components/OfferEditor.svelte'
   import Toasts from './components/Toasts.svelte'
-  import { api, type CampaignSummary, type Config, type OfferSummary } from './lib/api'
+  import {
+    api,
+    type CampaignSummary,
+    type Config,
+    type DomainSummary,
+    type OfferSummary,
+  } from './lib/api'
   import { notifyError } from './lib/toasts.svelte'
 
   let config = $state<Config | null>(null)
   let offers = $state<OfferSummary[]>([])
+  let domains = $state<DomainSummary[] | null>(null)
   let campaigns = $state<CampaignSummary[] | null>(null)
   let failed = $state(false)
 
@@ -31,10 +38,21 @@
     }
   }
 
+  // Домены нужны только форме создания: их сбой не должен закрывать редактор.
+  async function loadDomains(): Promise<void> {
+    try {
+      domains = await api.domains()
+    } catch (error) {
+      notifyError(error)
+      domains = []
+    }
+  }
+
   async function start(): Promise<void> {
     failed = false
     // Список кампаний — самый долгий запрос (листает весь трекер): не ждём его для старта.
     void loadCampaigns()
+    void loadDomains()
     try {
       ;[config, offers] = await Promise.all([api.config(), api.offers()])
     } catch (error) {
@@ -61,7 +79,7 @@
 
     <main class="min-w-0 rounded-lg bg-white/70 p-5 md:p-8">
       {#if selected === 'new'}
-        <CreateCampaign {config} {offers} oncreated={created} />
+        <CreateCampaign {config} {offers} {domains} oncreated={created} />
       {:else}
         {#key selected}
           <OfferEditor campaignId={selected} prefix={config.name_prefix} {offers} />

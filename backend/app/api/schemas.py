@@ -1,7 +1,7 @@
 """Формы запросов и ответов /api. По ним генерируются TS-типы (pnpm gen:api).
 
-Простые доменные dataclass (OfferShare, OfferSummary, CampaignSummary) pydantic отдаёт
-как есть, поэтому здесь только формы, которых в домене нет.
+Простые доменные dataclass (OfferShare, OfferSummary, DomainSummary, CampaignSummary)
+pydantic отдаёт как есть, поэтому здесь только формы, которых в домене нет.
 """
 
 from datetime import datetime
@@ -25,6 +25,7 @@ class CampaignCreateIn(BaseModel):
     name_suffix: str
     countries: list[str]
     offer_id: int
+    domain_id: int
 
 
 class CampaignCreatedOut(BaseModel):

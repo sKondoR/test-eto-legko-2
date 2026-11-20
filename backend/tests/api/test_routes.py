@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.domain.countries import parse_countries
-from app.domain.ports import CampaignState, OfferSummary
+from app.domain.ports import CampaignState, DomainSummary, OfferSummary
 from app.main import app
 from app.services.campaigns import CampaignService
 from app.services.offer_editor import OfferEditor
@@ -14,7 +14,11 @@ from tests.services.fakes import FakeKeitaro, FakeLog
 
 @pytest.fixture
 def keitaro() -> FakeKeitaro:
-    return FakeKeitaro(placement=PLACEMENT, offers=[OfferSummary(18813, "Flexacil")])
+    return FakeKeitaro(
+        placement=PLACEMENT,
+        offers=[OfferSummary(18813, "Flexacil")],
+        domains=[DomainSummary(1813, "kylovoa.com")],
+    )
 
 
 @pytest.fixture
@@ -28,7 +32,7 @@ def client(keitaro: FakeKeitaro) -> TestClient:
 
 
 def post_campaign(client: TestClient, **fields: Any) -> Any:
-    body = {"name_suffix": "c1", "countries": ["au"], "offer_id": 18813} | fields
+    body = {"name_suffix": "c1", "countries": ["au"], "offer_id": 18813, "domain_id": 1813} | fields
     return client.post("/api/campaigns", json=body)
 
 
@@ -49,6 +53,10 @@ def test_config_exposes_prefix_default_geo_and_countries(client: TestClient) -> 
 
 def test_lists_offers(client: TestClient) -> None:
     assert client.get("/api/offers").json() == [{"id": 18813, "name": "Flexacil"}]
+
+
+def test_lists_domains(client: TestClient) -> None:
+    assert client.get("/api/domains").json() == [{"id": 1813, "name": "kylovoa.com"}]
 
 
 def test_creates_and_lists_only_our_campaigns(client: TestClient, keitaro: FakeKeitaro) -> None:
@@ -147,7 +155,9 @@ def test_validation_error_is_422_with_russian_string_detail(client: TestClient) 
 
 
 def test_missing_field_is_named(client: TestClient) -> None:
-    response = client.post("/api/campaigns", json={"name_suffix": "c1", "countries": ["AU"]})
+    response = client.post(
+        "/api/campaigns", json={"name_suffix": "c1", "countries": ["AU"], "domain_id": 1813}
+    )
 
     assert response.json() == {"detail": "Неверный запрос: offer_id — обязательное поле"}
 

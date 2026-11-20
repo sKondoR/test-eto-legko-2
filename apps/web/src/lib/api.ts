@@ -4,6 +4,7 @@ import type { components } from '@app/api-types'
 type Schemas = components['schemas']
 export type Config = Schemas['ConfigOut']
 export type OfferSummary = Schemas['OfferSummary']
+export type DomainSummary = Schemas['DomainSummary']
 export type CampaignSummary = Schemas['CampaignSummary']
 export type OfferShare = Schemas['OfferShare']
 export type Editor = Schemas['EditorOut']
@@ -40,6 +41,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   config: () => request<Config>('GET', '/config'),
   offers: () => request<OfferSummary[]>('GET', '/offers'),
+  domains: () => request<DomainSummary[]>('GET', '/domains'),
   campaigns: () => request<CampaignSummary[]>('GET', '/campaigns'),
   createCampaign: (body: Schemas['CampaignCreateIn']) =>
     request<Schemas['CampaignCreatedOut']>('POST', '/campaigns', body),

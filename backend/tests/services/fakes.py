@@ -7,15 +7,22 @@ from app.domain.campaign_name import CampaignName
 from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferChange, OfferSet
 from app.domain.plan import CampaignPlan, GeoRedirectFlow, OfferFlow, Placement
-from app.domain.ports import CampaignState, CampaignSummary, OfferHistoryEntry, OfferSummary
+from app.domain.ports import (
+    CampaignState,
+    CampaignSummary,
+    DomainSummary,
+    OfferHistoryEntry,
+    OfferSummary,
+)
 
 
 @dataclass
 class FakeKeitaro:
-    placement: Placement | None = None  # None — размещение в Keitaro не найдено
+    placement: Placement | None = None  # None — группа или источник в Keitaro не найдены
     campaigns: dict[int, CampaignState] = field(default_factory=dict)
     archived: list[int] = field(default_factory=list)
     offers: list[OfferSummary] = field(default_factory=list)
+    domains: list[DomainSummary] = field(default_factory=list)
     fail_on: set[str] = field(default_factory=set)  # имена методов, которые бросят KeitaroError
     calls: list[str] = field(default_factory=list)
     _next_id: int = field(default=100, init=False, repr=False)
@@ -25,11 +32,11 @@ class FakeKeitaro:
         if method in self.fail_on:
             raise KeitaroError(f"{method} упал")
 
-    async def resolve_placement(self) -> Placement:
+    async def resolve_placement(self, domain_id: int) -> Placement:
         self._call("resolve_placement")
         if self.placement is None:
             raise KeitaroError("Размещение не найдено")
-        return self.placement
+        return replace(self.placement, domain_id=domain_id)
 
     async def create_campaign(self, name: CampaignName, placement: Placement) -> int:
         self._call("create_campaign")
@@ -71,6 +78,10 @@ class FakeKeitaro:
     async def list_offers(self) -> list[OfferSummary]:
         self._call("list_offers")
         return self.offers
+
+    async def list_domains(self) -> list[DomainSummary]:
+        self._call("list_domains")
+        return self.domains
 
 
 @dataclass

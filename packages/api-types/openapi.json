@@ -167,6 +167,78 @@
         }
       }
     },
+    "/api/domains": {
+      "get": {
+        "summary": "List Domains",
+        "operationId": "list_domains_api_domains_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DomainSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Domains Api Domains Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/campaigns": {
       "get": {
         "summary": "List Campaigns",
@@ -502,13 +574,18 @@
           "offer_id": {
             "type": "integer",
             "title": "Offer Id"
+          },
+          "domain_id": {
+            "type": "integer",
+            "title": "Domain Id"
           }
         },
         "type": "object",
         "required": [
           "name_suffix",
           "countries",
-          "offer_id"
+          "offer_id",
+          "domain_id"
         ],
         "title": "CampaignCreateIn"
       },
@@ -571,6 +648,24 @@
           "countries"
         ],
         "title": "ConfigOut"
+      },
+      "DomainSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DomainSummary"
       },
       "EditorOut": {
         "properties": {

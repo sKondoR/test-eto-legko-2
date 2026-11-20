@@ -14,7 +14,7 @@ from app.api.schemas import (
 )
 from app.domain.campaign_name import PREFIX
 from app.domain.countries import ISO_CODES
-from app.domain.ports import CampaignSummary, OfferSummary
+from app.domain.ports import CampaignSummary, DomainSummary, OfferSummary
 from app.services.campaigns import CampaignService
 from app.services.offer_editor import OfferEditor
 
@@ -51,6 +51,11 @@ async def list_offers(campaigns: Campaigns) -> list[OfferSummary]:
     return await campaigns.list_offers()
 
 
+@router.get("/domains")
+async def list_domains(campaigns: Campaigns) -> list[DomainSummary]:
+    return await campaigns.list_domains()
+
+
 @router.get("/campaigns")
 async def list_campaigns(campaigns: Campaigns) -> list[CampaignSummary]:
     return await campaigns.list_ours()
@@ -58,7 +63,9 @@ async def list_campaigns(campaigns: Campaigns) -> list[CampaignSummary]:
 
 @router.post("/campaigns", status_code=201)
 async def create_campaign(body: CampaignCreateIn, campaigns: Campaigns) -> CampaignCreatedOut:
-    campaign_id = await campaigns.create(body.name_suffix, body.countries, body.offer_id)
+    campaign_id = await campaigns.create(
+        body.name_suffix, body.countries, body.offer_id, body.domain_id
+    )
     return CampaignCreatedOut(id=campaign_id)
 
 

@@ -4,7 +4,13 @@ from app.domain.campaign_name import CampaignName, is_ours
 from app.domain.countries import parse_countries
 from app.domain.errors import KeitaroError
 from app.domain.plan import build_campaign_plan
-from app.domain.ports import CampaignLog, CampaignSummary, KeitaroPort, OfferSummary
+from app.domain.ports import (
+    CampaignLog,
+    CampaignSummary,
+    DomainSummary,
+    KeitaroPort,
+    OfferSummary,
+)
 
 
 class CampaignService:
@@ -12,11 +18,13 @@ class CampaignService:
         self._keitaro = keitaro
         self._log = log
 
-    async def create(self, name_suffix: str, countries: Sequence[str], offer_id: int) -> int:
+    async def create(
+        self, name_suffix: str, countries: Sequence[str], offer_id: int, domain_id: int
+    ) -> int:
         """Создаёт кампанию с двумя потоками. Если поток не создался — кампания уходит в архив."""
         name = CampaignName.from_suffix(name_suffix)
         geo = parse_countries(countries)
-        placement = await self._keitaro.resolve_placement()
+        placement = await self._keitaro.resolve_placement(domain_id)
         plan = build_campaign_plan(name, geo, offer_id, placement)
 
         campaign_id: int | None = None
@@ -42,3 +50,6 @@ class CampaignService:
 
     async def list_offers(self) -> list[OfferSummary]:
         return await self._keitaro.list_offers()
+
+    async def list_domains(self) -> list[DomainSummary]:
+        return await self._keitaro.list_domains()

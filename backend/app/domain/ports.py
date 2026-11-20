@@ -22,6 +22,12 @@ class OfferSummary:
 
 
 @dataclass(frozen=True)
+class DomainSummary:
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
 class OfferHistoryEntry:
     changed_at: datetime
     change: OfferChange
@@ -41,8 +47,8 @@ class CampaignState:
 
 
 class KeitaroPort(Protocol):
-    async def resolve_placement(self) -> Placement:
-        """ID домена, группы и источника. Имена берутся из настроек адаптера."""
+    async def resolve_placement(self, domain_id: int) -> Placement:
+        """Размещение в выбранном домене. Группа и источник — по именам из настроек адаптера."""
         ...
 
     async def create_campaign(self, name: CampaignName, placement: Placement) -> int: ...
@@ -60,6 +66,8 @@ class KeitaroPort(Protocol):
     async def update_offer_flow(self, flow_id: int, offers: OfferSet) -> None: ...
 
     async def list_offers(self) -> list[OfferSummary]: ...
+
+    async def list_domains(self) -> list[DomainSummary]: ...
 
 
 class CampaignLog(Protocol):

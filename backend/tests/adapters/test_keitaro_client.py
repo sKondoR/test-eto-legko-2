@@ -11,7 +11,7 @@ from app.domain.countries import CountryCode
 from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferSet
 from app.domain.plan import GeoRedirectFlow, OfferFlow
-from app.domain.ports import CampaignState, CampaignSummary, OfferSummary
+from app.domain.ports import CampaignState, CampaignSummary, DomainSummary, OfferSummary
 from tests.helpers import PLACEMENT, shares
 
 API = "/admin_api/v1"
@@ -68,12 +68,11 @@ class KeitaroStub:
         ]
 
 
-def make_client(stub: KeitaroStub, domain: str = "kylovoa.com") -> KeitaroClient:
+def make_client(stub: KeitaroStub, group: str = "FORTESTS") -> KeitaroClient:
     return KeitaroClient(
         "https://tlgk.host/",
         "secret-key",
-        domain=domain,
-        group="FORTESTS",
+        group=group,
         source="FORTESTS",
         transport=httpx2.MockTransport(stub),
     )
@@ -92,10 +91,10 @@ async def client(fake: KeitaroStub) -> AsyncIterator[KeitaroClient]:
 
 
 async def test_resolves_placement_by_name_once(client: KeitaroClient, fake: KeitaroStub) -> None:
-    assert await client.resolve_placement() == PLACEMENT
-    assert await client.resolve_placement() == PLACEMENT
+    assert await client.resolve_placement(1813) == PLACEMENT
+    assert await client.resolve_placement(1813) == PLACEMENT
 
-    assert len(fake.requests) == 3
+    assert len(fake.requests) == 2
     groups = next(r for r in fake.requests if r.url.path.endswith("/groups"))
     assert groups.url.params["type"] == "campaigns"
     for r in fake.requests:
@@ -105,11 +104,15 @@ async def test_resolves_placement_by_name_once(client: KeitaroClient, fake: Keit
         assert r.headers["User-Agent"] == USER_AGENT
 
 
-async def test_unknown_domain_is_reported_by_name(fake: KeitaroStub) -> None:
-    client = make_client(fake, domain="in.posdk.xyz")
-    with pytest.raises(KeitaroError, match="in.posdk.xyz"):
-        await client.resolve_placement()
+async def test_unknown_group_is_reported_by_name(fake: KeitaroStub) -> None:
+    client = make_client(fake, group="NOPE")
+    with pytest.raises(KeitaroError, match="NOPE"):
+        await client.resolve_placement(1813)
     await client.aclose()
+
+
+async def test_lists_domains(client: KeitaroClient) -> None:
+    assert await client.list_domains() == [DomainSummary(1813, "kylovoa.com")]
 
 
 async def test_creates_campaign_in_placement(client: KeitaroClient, fake: KeitaroStub) -> None:
