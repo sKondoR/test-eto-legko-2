@@ -45,7 +45,8 @@ Domain rules:
 - `distribute_shares(n)`: 100 split evenly, remainder goes to the **last** offer (3 → 33/33/34). Same function duplicated in TS (`apps/web`) for instant preview; pytest and vitest cover the same cases.
 - `CampaignName`: must start with `test_kondrashin_`, chars `[a-z0-9_]`; UI shows the prefix as fixed.
 - `CountryCode`: ISO 3166-1 alpha-2 from a static list.
-- `OfferSet`: no duplicate offers, cannot remove the last offer, shares recalculated evenly on every add/remove (manual shares set in Keitaro get overwritten — UI warns), `diff(before, after)` feeds the change log.
+- `OfferSet`: wraps the offer flow as ordered `OfferShare(offer_id, share)`; never empty, no duplicates. Keitaro shares are kept as-is (may be manual, `is_even` tells the UI to warn); the editor sends the final offer list and the backend rebuilds it with `OfferSet.evenly(ids)` (no separate add/remove on the backend). `diff(before, after)` feeds `offer_changes`. All rule violations raise `DomainError` (Russian message shown to the user).
+- `build_campaign_plan` returns Keitaro-agnostic `CampaignPlan` (`Placement` IDs, `GeoRedirectFlow`, `OfferFlow`); the Keitaro adapter maps it to API payloads.
 
 Campaign shape (matches the reference screenshots in `TASK.md`):
 

@@ -1,5 +1,6 @@
 import pytest
 
+from app.domain.errors import DomainError
 from app.domain.shares import distribute_shares
 
 
@@ -22,5 +23,5 @@ def test_shares_always_sum_to_100(count: int) -> None:
 
 
 def test_rejects_empty_offer_list() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DomainError):
         distribute_shares(0)
