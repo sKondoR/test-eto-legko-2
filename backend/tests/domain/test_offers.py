@@ -17,13 +17,8 @@ def test_evenly_rejects_empty_list() -> None:
         OfferSet.evenly([])
 
 
-def test_evenly_rejects_duplicates() -> None:
-    with pytest.raises(DomainError):
-        OfferSet.evenly([1, 2, 1])
-
-
 def test_keeps_manual_shares_from_keitaro() -> None:
-    offers = OfferSet([OfferShare(1, 70), OfferShare(2, 30)])
+    offers = OfferSet((OfferShare(1, 70), OfferShare(2, 30)))
     assert offers.offer_ids == (1, 2)
     assert not offers.is_even
 
@@ -32,9 +27,9 @@ def test_even_split_is_recognized() -> None:
     assert OfferSet.evenly([1, 2, 3]).is_even
 
 
-def test_rejects_duplicate_offers_from_keitaro() -> None:
+def test_rejects_duplicate_offers() -> None:
     with pytest.raises(DomainError):
-        OfferSet([OfferShare(1, 50), OfferShare(1, 50)])
+        OfferSet((OfferShare(1, 50), OfferShare(1, 50)))
 
 
 def test_diff_lists_added_and_removed_offers() -> None:
@@ -50,7 +45,7 @@ def test_diff_of_identical_sets_is_empty() -> None:
 
 
 def test_diff_with_only_reshared_offers_is_not_empty() -> None:
-    manual = OfferSet([OfferShare(1, 70), OfferShare(2, 30)])
+    manual = OfferSet((OfferShare(1, 70), OfferShare(2, 30)))
     change = diff(manual, OfferSet.evenly([1, 2]))
     assert change.added == () and change.removed == ()
     assert not change.is_empty

@@ -1,11 +1,7 @@
 import pytest
 
-from app.domain.campaign_name import PREFIX, CampaignName, is_ours
+from app.domain.campaign_name import CampaignName
 from app.domain.errors import DomainError
-
-
-def test_prefix_is_fixed() -> None:
-    assert PREFIX == "test_kondrashin_"
 
 
 def test_builds_name_from_suffix() -> None:
@@ -30,8 +26,3 @@ def test_accepts_full_name_with_prefix() -> None:
 def test_rejects_invalid_names(value: str) -> None:
     with pytest.raises(DomainError):
         CampaignName(value)
-
-
-def test_is_ours_checks_prefix() -> None:
-    assert is_ours("test_kondrashin_x")
-    assert not is_ours("test_ivanov_x")

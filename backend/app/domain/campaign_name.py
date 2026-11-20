@@ -20,7 +20,3 @@ class CampaignName:
     @classmethod
     def from_suffix(cls, suffix: str) -> "CampaignName":
         return cls(PREFIX + suffix)
-
-
-def is_ours(name: str) -> bool:
-    return name.startswith(PREFIX)

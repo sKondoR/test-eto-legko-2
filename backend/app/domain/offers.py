@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.domain.errors import DomainError
-from app.domain.shares import distribute_shares
+from app.domain.shares import NO_OFFERS, distribute_shares
 
 
 @dataclass(frozen=True)
@@ -17,18 +17,16 @@ class OfferSet:
 
     shares: tuple[OfferShare, ...]
 
-    def __init__(self, shares: Sequence[OfferShare]) -> None:
-        ids = [s.offer_id for s in shares]
-        if not ids:
-            raise DomainError("В потоке должен быть хотя бы один оффер")
-        if len(set(ids)) != len(ids):
+    def __post_init__(self) -> None:
+        if not self.shares:
+            raise DomainError(NO_OFFERS)
+        if len(set(self.offer_ids)) != len(self.shares):
             raise DomainError("Оффер уже есть в потоке")
-        object.__setattr__(self, "shares", tuple(shares))
 
     @classmethod
     def evenly(cls, offer_ids: Sequence[int]) -> "OfferSet":
         shares = distribute_shares(len(offer_ids))
-        return cls([OfferShare(i, s) for i, s in zip(offer_ids, shares, strict=True)])
+        return cls(tuple(OfferShare(i, s) for i, s in zip(offer_ids, shares, strict=True)))
 
     @property
     def offer_ids(self) -> tuple[int, ...]:
@@ -36,7 +34,7 @@ class OfferSet:
 
     @property
     def is_even(self) -> bool:
-        return self == OfferSet.evenly(self.offer_ids)
+        return [s.share for s in self.shares] == distribute_shares(len(self.shares))
 
 
 @dataclass(frozen=True)

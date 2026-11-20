@@ -1,7 +1,7 @@
 from app.domain.campaign_name import CampaignName
 from app.domain.countries import CountryCode
 from app.domain.offers import OfferSet
-from app.domain.plan import GOOGLE_URL, Placement, build_campaign_plan
+from app.domain.plan import Placement, build_campaign_plan
 
 
 def test_builds_geo_flow_then_offer_flow() -> None:
@@ -16,5 +16,5 @@ def test_builds_geo_flow_then_offer_flow() -> None:
     assert plan.name.value == "test_kondrashin_c1"
     assert plan.placement == placement
     assert plan.geo_flow.countries == (CountryCode("AU"), CountryCode("RO"))
-    assert plan.geo_flow.redirect_url == GOOGLE_URL == "https://google.com"
+    assert plan.geo_flow.redirect_url == "https://google.com"
     assert plan.offer_flow.offers == OfferSet.evenly([3749])
