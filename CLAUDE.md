@@ -34,7 +34,7 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 
 Dependencies point one way: `api → services → domain ← adapters`.
 
-- `domain/` — pure logic, no IO; defines ports (`Protocol`): `KeitaroPort`, `CampaignLog`.
+- `domain/` — pure logic, no IO; defines ports (`Protocol`, `domain/ports.py`): `KeitaroPort`, `CampaignLog`. Errors (`domain/errors.py`): `DomainError` (rule broken → 422), `KeitaroError` (adapter/API failure → 502), `ConflictError` (flow changed in Keitaro meanwhile → 409); all messages are Russian and shown to the user.
 - `services/` — use cases (create campaign, change offers); tested with in-memory fakes of the ports.
 - `adapters/keitaro/` — async `httpx2` client implementing `KeitaroPort`; transport is injected, tests pass `httpx2.MockTransport` (no respx: it supports only legacy `httpx`).
 - `adapters/db/` — SQLAlchemy models/repositories; tests use a separate Postgres test DB.
@@ -50,13 +50,13 @@ Domain rules:
 
 Campaign shape (matches the reference screenshots in `TASK.md`):
 
-- Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`.
+- Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`. The names are Keitaro adapter config: `KeitaroPort.resolve_placement()` takes no arguments, and the adapter resolves the IDs once and caches them.
 - Flow 1: `regular`, position 1, filter `{name: "country", mode: "accept", payload: [geo…]}`, HTTP redirect to `https://google.com` (verify exact `action_type` via `GET /streams_actions`).
-- Flow 2: `default`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only.
+- Flow 2: `default`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only. The editor opens and saves only campaigns whose name starts with `test_kondrashin_` (`is_ours`); other candidates' campaigns in the tracker must never be touched.
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.
 - Editor saves on an explicit "Save"; before saving the service re-reads the flow and returns 409 if offers changed in Keitaro meanwhile.
 
-DB tables: `campaigns` (campaigns created via the app; geo stored as array) and `offer_changes` (before → after log, shown as history in the editor).
+DB tables: `campaigns` (campaigns created via the app; geo stored as array) and `offer_changes` (before → after log, shown as history in the editor). Both store the Keitaro campaign ID as `keitaro_id`; `offer_changes` has no foreign key to `campaigns`, because the editor also opens `test_kondrashin_*` campaigns created outside the app.
 
 ## Keitaro Admin API
 

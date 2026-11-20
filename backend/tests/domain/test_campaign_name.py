@@ -1,6 +1,6 @@
 import pytest
 
-from app.domain.campaign_name import CampaignName
+from app.domain.campaign_name import CampaignName, is_ours
 from app.domain.errors import DomainError
 
 
@@ -26,3 +26,16 @@ def test_accepts_full_name_with_prefix() -> None:
 def test_rejects_invalid_names(value: str) -> None:
     with pytest.raises(DomainError):
         CampaignName(value)
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("test_kondrashin_c1", True),
+        ("test_kondrashin_Hand Edited", True),  # переименовали вручную — всё равно наша
+        ("test_ivanov_c1", False),
+        ("kondrashin_c1", False),
+    ],
+)
+def test_is_ours_checks_prefix_only(name: str, expected: bool) -> None:
+    assert is_ours(name) is expected
