@@ -34,7 +34,7 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 
 Dependencies point one way: `api → services → domain ← adapters`.
 
-- `domain/` — pure logic, no IO; defines ports (`Protocol`): `KeitaroPort`, `CampaignLog`.
+- `domain/` — pure logic, no IO; defines ports (`Protocol`, `domain/ports.py`): `KeitaroPort`, `CampaignLog`. Errors (`domain/errors.py`): `DomainError` (rule broken → 422), `KeitaroError` (adapter/API failure → 502), `ConflictError` (flow changed in Keitaro meanwhile → 409); all messages are Russian and shown to the user.
 - `services/` — use cases (create campaign, change offers); tested with in-memory fakes of the ports.
 - `adapters/keitaro/` — async `httpx2` client implementing `KeitaroPort`; transport is injected, tests pass `httpx2.MockTransport` (no respx: it supports only legacy `httpx`).
 - `adapters/db/` — SQLAlchemy models/repositories; tests use a separate Postgres test DB.
