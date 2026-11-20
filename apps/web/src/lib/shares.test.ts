@@ -20,4 +20,9 @@ describe('distributeShares', () => {
   it('rejects empty offer list', () => {
     expect(() => distributeShares(0)).toThrow()
   })
+
+  it('rejects more offers than percent points', () => {
+    expect(distributeShares(100)).toEqual(Array(100).fill(1))
+    expect(() => distributeShares(101)).toThrow()
+  })
 })
