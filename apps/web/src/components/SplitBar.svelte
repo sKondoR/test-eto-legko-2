@@ -33,7 +33,7 @@
       role="img"
       aria-label={`${label}: ${shares.map((s) => `оффер ${s.offer_id} — ${s.share}%`).join(', ')}`}
     >
-      {#each shares as s (s.offer_id)}
+      {#each shares as s, i (i)}
         <div
           class="flex min-w-0 items-center justify-center text-white transition-[flex-grow] duration-300 ease-out"
           style:flex-grow={s.share}

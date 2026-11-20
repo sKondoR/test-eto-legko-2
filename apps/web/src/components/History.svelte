@@ -15,7 +15,7 @@
     <p class="text-sm text-muted">Через приложение офферы этой кампании ещё не меняли.</p>
   {:else}
     <ol class="flex flex-col">
-      {#each entries as entry (entry.changed_at)}
+      {#each entries as entry, i (i)}
         <li
           class="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line py-2.5 text-sm"
         >

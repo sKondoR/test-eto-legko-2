@@ -46,7 +46,7 @@ Dependencies point one way: `api → services → domain ← adapters`.
 
 Domain rules:
 
-- `distribute_shares(n)`: 100 split evenly, remainder goes to the **last** offer (3 → 33/33/34). Same function duplicated in TS (`apps/web`) for instant preview; pytest and vitest cover the same cases.
+- `distribute_shares(n)`: 100 split evenly, remainder goes to the **last** offer (3 → 33/33/34). Same function duplicated in TS (`apps/web`) for instant preview; pytest and vitest cover the same cases. `is_even_split` is also copied (`isEvenSplit` in `apps/web/src/lib/offers.ts`) so the Save button is off exactly when saving would change nothing.
 - `CampaignName`: must start with `test_kondrashin_`, chars `[a-z0-9_]`; UI shows the prefix as fixed.
 - `CountryCode`: ISO 3166-1 alpha-2 from a static list.
 - `OfferSet` is what we **write** to Keitaro: ordered `OfferShare(offer_id, share)`, never empty, no duplicates, each share 0..100, sum = 100; built with `OfferSet.evenly(ids)` from the editor's final offer list (no separate add/remove on the backend). What we **read** from Keitaro stays a plain `tuple[OfferShare, ...]` with no validation (it may be hand-edited, empty or broken) so the editor can always open and repair a campaign; `is_even_split(shares)` tells the UI to warn that saving overwrites manual shares (remainder position doesn't matter); the editor also reports a flow as not even when `CampaignState.disabled_offer_ids` is non-empty (offers disabled in Keitaro keep a share but get no traffic). `diff(before_from_keitaro, after: OfferSet)` feeds `offer_changes`. All rule violations raise `DomainError` (Russian message shown to the user).

@@ -24,8 +24,7 @@
 />
 <datalist id={`${id}-list`}>
   {#each offers as offer (offer.id)}
-    <option
-      value={offer.name.startsWith(String(offer.id)) ? offer.name : `${offer.id} ${offer.name}`}
+    <option value={offer.name.startsWith(`${offer.id} `) ? offer.name : `${offer.id} ${offer.name}`}
     ></option>
   {/each}
 </datalist>

@@ -64,6 +64,14 @@ describe('hasChanges', () => {
     expect(hasChanges(shares([1, 70], [2, 30]), [1, 2])).toBe(true)
   })
 
+  it('ровные доли с остатком не у последнего — не изменение, как is_even_split на бэкенде', () => {
+    expect(hasChanges(shares([1, 34], [2, 33], [3, 33]), [1, 2, 3])).toBe(false)
+  })
+
+  it('повтор оффера из Keitaro — изменение: сохранение починит поток', () => {
+    expect(hasChanges(shares([1, 50], [1, 50]), [1])).toBe(true)
+  })
+
   it('другой порядок — это изменение: остаток уходит другому офферу', () => {
     expect(hasChanges(shares([1, 33], [2, 33], [3, 34]), [3, 2, 1])).toBe(true)
   })

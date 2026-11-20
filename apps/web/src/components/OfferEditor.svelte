@@ -6,6 +6,7 @@
     addOffer,
     compareRows,
     hasChanges,
+    MAX_OFFERS,
     parseOfferId,
     previewShares,
     segmentColors,
@@ -26,10 +27,23 @@
   let offerText = $state('')
   let saving = $state(false)
 
-  const original = $derived(data?.offers.map((s) => s.offer_id) ?? [])
+  // Set: в потоке, правленом вручную, оффер может повторяться; сохранение это починит.
+  const original = $derived([...new Set(data?.offers.map((s) => s.offer_id))])
   const preview = $derived(previewShares(offerIds))
-  const rows = $derived(data ? compareRows(data.offers, offerIds) : [])
+  // Без правки показываем доли как есть: ровные 34/33/33 сохранение не трогает.
+  const rows = $derived.by(() => {
+    if (!data) return []
+    if (changed) return compareRows(data.offers, offerIds)
+    return data.offers.map((s) => ({
+      ...s,
+      before: s.share,
+      after: s.share,
+      status: 'kept' as const,
+    }))
+  })
   const changed = $derived(data !== null && hasChanges(data.offers, offerIds))
+  // Пользователь менял список: только тогда есть что отменять.
+  const edited = $derived(offerIds.join() !== original.join())
   const colors = $derived(segmentColors([...original, ...offerIds]))
   const offerNames = $derived(new Map(offers.map((o) => [o.id, o.name])))
   const warning = $derived.by(() => {
@@ -58,6 +72,8 @@
     const id = parseOfferId(offerText)
     if (id === null) {
       notify('error', 'Введите ID оффера: целое число, например 18813')
+    } else if (offerIds.length >= MAX_OFFERS) {
+      notify('error', `В потоке не больше ${MAX_OFFERS} офферов: каждому нужен хотя бы 1%`)
     } else if (offerIds.includes(id)) {
       notify('error', `Оффер ${id} уже в потоке`)
     } else {
@@ -76,7 +92,8 @@
     try {
       await api.saveOffers(campaignId, { expected: data.offers, offer_ids: offerIds })
       notify('success', 'Офферы сохранены')
-      void load() // свежие доли и история; кнопки не ждут перечитывания
+      // Ждём свежие данные: иначе повторный клик уйдёт со старым expected и получит 409.
+      await load()
     } catch (error) {
       notifyError(error)
       if (error instanceof ApiError && error.status === 409) await load(true)
@@ -117,7 +134,7 @@
         <SplitBar shares={data.offers} {colors} label="Сейчас в Keitaro" size="sm" />
       {/if}
       <SplitBar
-        shares={preview}
+        shares={changed ? preview : data.offers}
         {colors}
         label={changed ? 'После сохранения' : 'Сейчас в Keitaro'}
       />
@@ -198,7 +215,7 @@
         >
           {saving ? 'Сохраняю…' : 'Сохранить офферы'}
         </button>
-        {#if changed}
+        {#if edited}
           <button
             type="button"
             class="rounded-md px-3 py-2.5 text-muted hover:text-ink"

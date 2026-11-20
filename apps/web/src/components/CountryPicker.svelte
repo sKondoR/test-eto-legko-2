@@ -57,6 +57,7 @@
     autocomplete="off"
     bind:value={text}
     {onkeydown}
+    oninput={() => (hint = '')}
     onchange={add}
   />
   <datalist id={`${id}-list`}>

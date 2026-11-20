@@ -23,6 +23,8 @@ export function addOffer(offerIds: number[], id: number): number[] {
 }
 
 const PALETTE_SIZE = 5
+/** Больше офферов не делится: каждому нужен хотя бы 1% (distributeShares). */
+export const MAX_OFFERS = 100
 
 /** Цвет закреплён за оффером в порядке первого появления: один и тот же в полосах и таблице. */
 export function segmentColors(offerIds: number[]): Map<number, string> {
@@ -56,12 +58,17 @@ export function compareRows(current: OfferShare[], offerIds: number[]): Row[] {
   return [...kept, ...removed]
 }
 
-/** Сохранение что-то поменяет в Keitaro: другой состав, порядок или неравные доли.
- * Повторяет diff бэкенда (сравнение долей до и после) только ради активности кнопки. */
+/** Доли поровну, остаток у любого оффера — копия is_even_split бэкенда. */
+export function isEvenSplit(shares: OfferShare[]): boolean {
+  const ids = new Set(shares.map((s) => s.offer_id))
+  if (shares.length < 1 || shares.length > MAX_OFFERS || ids.size !== shares.length) return false
+  const sorted = (xs: number[]) => [...xs].sort((a, b) => a - b).join()
+  return sorted(shares.map((s) => s.share)) === sorted(distributeShares(shares.length))
+}
+
+/** Сохранение что-то поменяет: другой состав или порядок офферов, либо доли не поровну. */
 export function hasChanges(current: OfferShare[], offerIds: number[]): boolean {
-  const next = previewShares(offerIds)
-  return (
-    next.length !== current.length ||
-    next.some((s, i) => s.offer_id !== current[i].offer_id || s.share !== current[i].share)
-  )
+  const sameIds =
+    current.length === offerIds.length && current.every((s, i) => s.offer_id === offerIds[i])
+  return !sameIds || !isEvenSplit(current)
 }
