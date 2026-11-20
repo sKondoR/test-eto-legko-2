@@ -61,7 +61,7 @@ def test_manual_or_broken_split_is_not_even(current: tuple[OfferShare, ...]) -> 
 
 
 def test_diff_lists_added_and_removed_offers() -> None:
-    change = diff(shares((1, 50), (2, 50)), OfferSet.evenly([2, 3, 4]))
+    change = diff(shares((1, 50), (2, 50)), OfferSet.evenly([2, 3, 4]).shares)
     assert change.added == (3, 4)
     assert change.removed == (1,)
     assert change.before == shares((1, 50), (2, 50))
@@ -69,17 +69,17 @@ def test_diff_lists_added_and_removed_offers() -> None:
 
 
 def test_diff_of_identical_sets_is_empty() -> None:
-    assert diff(shares((1, 50), (2, 50)), OfferSet.evenly([1, 2])).is_empty
+    assert diff(shares((1, 50), (2, 50)), OfferSet.evenly([1, 2]).shares).is_empty
 
 
 def test_diff_with_only_reshared_offers_is_not_empty() -> None:
-    change = diff(shares((1, 70), (2, 30)), OfferSet.evenly([1, 2]))
+    change = diff(shares((1, 70), (2, 30)), OfferSet.evenly([1, 2]).shares)
     assert change.added == () and change.removed == ()
     assert not change.is_empty
 
 
 def test_diff_repairs_broken_keitaro_flow() -> None:
-    change = diff(shares((1, 50), (1, 50)), OfferSet.evenly([1]))
+    change = diff(shares((1, 50), (1, 50)), OfferSet.evenly([1]).shares)
     assert change.removed == ()
     assert change.after == shares((1, 100))
-    assert diff(shares(), OfferSet.evenly([7])).added == (7,)
+    assert diff(shares(), OfferSet.evenly([7]).shares).added == (7,)

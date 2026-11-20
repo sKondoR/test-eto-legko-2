@@ -1,6 +1,7 @@
 """Порты: что домену и сервисам нужно от внешнего мира. Реализации — в app/adapters."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from app.domain.campaign_name import CampaignName
@@ -12,6 +13,18 @@ from app.domain.plan import CampaignPlan, GeoRedirectFlow, OfferFlow, Placement
 class CampaignSummary:
     id: int
     name: str
+
+
+@dataclass(frozen=True)
+class OfferSummary:
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
+class OfferHistoryEntry:
+    changed_at: datetime
+    change: OfferChange
 
 
 @dataclass(frozen=True)
@@ -46,8 +59,12 @@ class KeitaroPort(Protocol):
 
     async def update_offer_flow(self, flow_id: int, offers: OfferSet) -> None: ...
 
+    async def list_offers(self) -> list[OfferSummary]: ...
+
 
 class CampaignLog(Protocol):
+    """Журнал вторичен: реализации не бросают исключений на сбоях хранилища, а пишут их в лог."""
+
     async def campaign_created(self, keitaro_id: int, plan: CampaignPlan) -> None: ...
 
     async def campaign_failed(
@@ -55,3 +72,7 @@ class CampaignLog(Protocol):
     ) -> None: ...
 
     async def offers_changed(self, keitaro_id: int, change: OfferChange) -> None: ...
+
+    async def offer_history(self, keitaro_id: int) -> list[OfferHistoryEntry]:
+        """Правки офферов кампании, новые первыми."""
+        ...

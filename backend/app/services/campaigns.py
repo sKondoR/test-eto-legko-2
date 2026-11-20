@@ -4,7 +4,7 @@ from app.domain.campaign_name import CampaignName, is_ours
 from app.domain.countries import parse_countries
 from app.domain.errors import KeitaroError
 from app.domain.plan import build_campaign_plan
-from app.domain.ports import CampaignLog, CampaignSummary, KeitaroPort
+from app.domain.ports import CampaignLog, CampaignSummary, KeitaroPort, OfferSummary
 
 
 class CampaignService:
@@ -39,3 +39,6 @@ class CampaignService:
 
     async def list_ours(self) -> list[CampaignSummary]:
         return [c for c in await self._keitaro.list_campaigns() if is_ours(c.name)]
+
+    async def list_offers(self) -> list[OfferSummary]:
+        return await self._keitaro.list_offers()

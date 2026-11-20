@@ -1,13 +1,26 @@
-"""CampaignLog поверх Postgres."""
+"""CampaignLog поверх Postgres.
 
+Журнал вторичен, главный источник данных — Keitaro. Поэтому сбой БД пишется в лог сервера
+и не ломает вызывающий код: создание кампании и сохранение офферов уже прошли в Keitaro,
+а редактор должен открыться и без истории.
+"""
+
+import logging
 from collections.abc import Sequence
 from typing import Literal
 
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.db.models import Base, CampaignRow, OfferChangeRow
-from app.domain.offers import OfferChange, OfferShare
+from app.domain.offers import OfferChange, OfferShare, diff
 from app.domain.plan import CampaignPlan
+from app.domain.ports import OfferHistoryEntry
+
+logger = logging.getLogger(__name__)
+# OSError — Postgres не принимает соединение (asyncpg бросает его до SQLAlchemy).
+DB_ERRORS = (SQLAlchemyError, OSError)
 
 
 class SqlCampaignLog:
@@ -29,9 +42,28 @@ class SqlCampaignLog:
             )
         )
 
+    async def offer_history(self, keitaro_id: int) -> list[OfferHistoryEntry]:
+        query = (
+            select(OfferChangeRow)
+            .where(OfferChangeRow.keitaro_id == keitaro_id)
+            .order_by(OfferChangeRow.changed_at.desc(), OfferChangeRow.id.desc())
+        )
+        try:
+            async with self._sessions() as session:
+                rows = (await session.scalars(query)).all()
+        except DB_ERRORS:
+            logger.exception("Журнал: не удалось прочитать историю кампании %s", keitaro_id)
+            return []
+        return [
+            OfferHistoryEntry(r.changed_at, diff(_shares(r.before), _shares(r.after))) for r in rows
+        ]
+
     async def _add(self, row: Base) -> None:
-        async with self._sessions.begin() as session:
-            session.add(row)
+        try:
+            async with self._sessions.begin() as session:
+                session.add(row)
+        except DB_ERRORS:
+            logger.exception("Журнал: не удалось записать %s", type(row).__tablename__)
 
 
 def _campaign_row(
@@ -52,3 +84,7 @@ def _campaign_row(
 
 def _shares_json(shares: Sequence[OfferShare]) -> list[dict[str, int]]:
     return [{"offer_id": s.offer_id, "share": s.share} for s in shares]
+
+
+def _shares(items: list[dict[str, int]]) -> tuple[OfferShare, ...]:
+    return tuple(OfferShare(i["offer_id"], i["share"]) for i in items)

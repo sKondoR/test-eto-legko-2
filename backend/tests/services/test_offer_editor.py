@@ -125,3 +125,14 @@ async def test_open_flags_disabled_offers_as_not_even() -> None:
     view = await OfferEditor(keitaro, FakeLog()).open(CAMPAIGN_ID)
 
     assert not view.is_even
+
+
+async def test_open_shows_offer_history_newest_first() -> None:
+    keitaro, log = keitaro_with(shares((1, 100))), FakeLog()
+    editor = OfferEditor(keitaro, log)
+    await editor.save(CAMPAIGN_ID, expected=shares((1, 100)), offer_ids=[1, 2])
+    await editor.save(CAMPAIGN_ID, expected=shares((1, 50), (2, 50)), offer_ids=[2])
+
+    view = await editor.open(CAMPAIGN_ID)
+
+    assert [(e.change.added, e.change.removed) for e in view.history] == [((), (1,)), ((2,), ())]
