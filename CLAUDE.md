@@ -36,7 +36,7 @@ Dependencies point one way: `api → services → domain ← adapters`.
 
 - `domain/` — pure logic, no IO; defines ports (`Protocol`): `KeitaroPort`, `CampaignLog`.
 - `services/` — use cases (create campaign, change offers); tested with in-memory fakes of the ports.
-- `adapters/keitaro/` — async `httpx` client implementing `KeitaroPort`; the only place tested with `respx`.
+- `adapters/keitaro/` — async `httpx2` client implementing `KeitaroPort`; transport is injected, tests pass `httpx2.MockTransport` (no respx: it supports only legacy `httpx`).
 - `adapters/db/` — SQLAlchemy models/repositories; tests use a separate Postgres test DB.
 - `domain/` and `services/` are written test-first (red-green-refactor).
 
