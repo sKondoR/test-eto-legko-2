@@ -1,4 +1,8 @@
 from app.domain.offers import OfferShare
+from app.domain.plan import Placement
+
+# ID из живого трекера: домен kylovoa.com, группа и источник FORTESTS.
+PLACEMENT = Placement(domain_id=1813, group_id=10332, traffic_source_id=836)
 
 
 def shares(*pairs: tuple[int, int]) -> tuple[OfferShare, ...]:

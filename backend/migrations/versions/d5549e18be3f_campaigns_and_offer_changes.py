@@ -1,8 +1,8 @@
 """campaigns and offer changes
 
-Revision ID: 4ca8f05a9521
+Revision ID: d5549e18be3f
 Revises:
-Create Date: 2026-11-20 22:38:48.985529
+Create Date: 2026-11-20 22:52:01.609373
 
 """
 
@@ -13,7 +13,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "4ca8f05a9521"
+revision: str = "d5549e18be3f"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -37,9 +37,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint("status IN ('created', 'failed')", name="status"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("keitaro_id"),
     )
     op.create_table(
         "offer_changes",
@@ -47,8 +45,6 @@ def upgrade() -> None:
         sa.Column("keitaro_id", sa.Integer(), nullable=False),
         sa.Column("before", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("after", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("added", postgresql.ARRAY(sa.Integer()), nullable=False),
-        sa.Column("removed", postgresql.ARRAY(sa.Integer()), nullable=False),
         sa.Column(
             "changed_at",
             sa.DateTime(timezone=True),

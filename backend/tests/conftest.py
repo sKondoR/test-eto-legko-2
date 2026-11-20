@@ -8,13 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import ROOT, get_settings
 
+# Создаётся при первом запуске контейнера: docker/create-test-db.sql.
 TEST_DB = "keitaro_test"
-
-
-def alembic_config(url: str) -> Config:
-    config = Config(ROOT / "backend" / "alembic.ini")
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
 
 
 @pytest.fixture(scope="session")
@@ -22,7 +17,8 @@ def test_db_url() -> str:
     """База keitaro_test со схемой из миграций. Сначала откат: так проверяется и downgrade."""
     url = make_url(get_settings().database_url).set(database=TEST_DB)
     url_str = url.render_as_string(hide_password=False)
-    config = alembic_config(url_str)
+    config = Config(ROOT / "backend" / "alembic.ini")
+    config.attributes["url"] = url_str
     command.downgrade(config, "base")
     command.upgrade(config, "head")
     return url_str

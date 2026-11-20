@@ -36,7 +36,7 @@
    ```
    Postgres доступен на порту **5434** (не 5432): так он не конфликтует с другими Postgres на машине.
    База `keitaro_test` создаётся только при первом запуске, на пустом томе. Если том `pgdata` остался от старой версии без неё, пересоздайте его: `docker compose down -v && docker compose up -d db`.
-5. Создайте таблицы (миграции Alembic лежат в `backend/alembic/versions`):
+5. Создайте таблицы (миграции Alembic лежат в `backend/migrations/versions`):
    ```sh
    pnpm db:migrate
    ```

@@ -1,7 +1,7 @@
 """CampaignLog поверх Postgres."""
 
 from collections.abc import Sequence
-from dataclasses import asdict
+from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -26,8 +26,6 @@ class SqlCampaignLog:
                 keitaro_id=keitaro_id,
                 before=_shares_json(change.before),
                 after=_shares_json(change.after),
-                added=list(change.added),
-                removed=list(change.removed),
             )
         )
 
@@ -37,7 +35,10 @@ class SqlCampaignLog:
 
 
 def _campaign_row(
-    keitaro_id: int | None, plan: CampaignPlan, status: str, error: str | None
+    keitaro_id: int | None,
+    plan: CampaignPlan,
+    status: Literal["created", "failed"],
+    error: str | None,
 ) -> CampaignRow:
     return CampaignRow(
         keitaro_id=keitaro_id,
@@ -50,4 +51,4 @@ def _campaign_row(
 
 
 def _shares_json(shares: Sequence[OfferShare]) -> list[dict[str, int]]:
-    return [asdict(s) for s in shares]
+    return [{"offer_id": s.offer_id, "share": s.share} for s in shares]

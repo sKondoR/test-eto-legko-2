@@ -8,14 +8,14 @@ from app.adapters.db.models import Base, CampaignRow, OfferChangeRow
 from app.domain.campaign_name import CampaignName
 from app.domain.countries import parse_countries
 from app.domain.offers import OfferSet, diff
-from app.domain.plan import Placement, build_campaign_plan
-from tests.helpers import shares
+from app.domain.plan import build_campaign_plan
+from tests.helpers import PLACEMENT, shares
 
 PLAN = build_campaign_plan(
     CampaignName("test_kondrashin_c1"),
     parse_countries(["AU", "RO"]),
     18813,
-    Placement(domain_id=1813, group_id=10332, traffic_source_id=836),
+    PLACEMENT,
 )
 
 
@@ -73,8 +73,8 @@ async def test_logs_offer_changes_for_any_campaign(
         {"offer_id": 3, "share": 33},
         {"offer_id": 4, "share": 34},
     ]
-    assert (one.added, one.removed) == ([3, 4], [1])
-    assert (two.added, two.removed) == ([], [3, 4])
+    assert two.before == one.after
+    assert two.after == [{"offer_id": 2, "share": 100}]
     assert one.changed_at is not None
 
 
