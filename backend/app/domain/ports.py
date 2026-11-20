@@ -23,6 +23,8 @@ class CampaignState:
     geo_countries: tuple[str, ...]
     offer_flow_id: int | None
     offers: tuple[OfferShare, ...]
+    # Офферы, выключенные в Keitaro: доля у них есть, а трафика нет.
+    disabled_offer_ids: tuple[int, ...] = ()
 
 
 class KeitaroPort(Protocol):
