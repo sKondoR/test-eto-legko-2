@@ -12,7 +12,6 @@ class Settings(BaseSettings):
 
     keitaro_url: str
     keitaro_api_key: str
-    keitaro_domain: str
     keitaro_group: str
     keitaro_source: str
     default_geo: str

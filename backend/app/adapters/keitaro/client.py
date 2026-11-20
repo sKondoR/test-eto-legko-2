@@ -10,7 +10,7 @@ from app.domain.campaign_name import CampaignName
 from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferSet, OfferShare
 from app.domain.plan import GOOGLE_URL, GeoRedirectFlow, OfferFlow, Placement
-from app.domain.ports import CampaignState, CampaignSummary, OfferSummary
+from app.domain.ports import CampaignState, CampaignSummary, DomainSummary, OfferSummary
 
 # Cloudflare перед трекером отвечает 403 (error 1010) на User-Agent библиотек вроде Python-urllib.
 USER_AGENT = "keitaro-campaigns/0.1"
@@ -26,7 +26,6 @@ class KeitaroClient:
         base_url: str,
         api_key: str,
         *,
-        domain: str,
         group: str,
         source: str,
         transport: httpx2.AsyncBaseTransport | None = None,
@@ -37,27 +36,26 @@ class KeitaroClient:
             timeout=15,
             transport=transport,
         )
-        self._names = (domain, group, source)
-        self._placement: Placement | None = None
+        self._names = (group, source)
+        self._group_and_source: tuple[int, int] | None = None
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    async def resolve_placement(self) -> Placement:
+    async def resolve_placement(self, domain_id: int) -> Placement:
         # Имена из настроек не меняются, пока процесс жив: ищем ID один раз.
-        if self._placement is None:
-            domain, group, source = self._names
-            domains, groups, sources = await asyncio.gather(
-                self._request("GET", "/domains"),
+        if self._group_and_source is None:
+            group, source = self._names
+            groups, sources = await asyncio.gather(
                 self._request("GET", "/groups", params={"type": "campaigns"}),
                 self._request("GET", "/traffic_sources"),
             )
-            self._placement = Placement(
-                domain_id=_id_by_name(domains, domain, "домена"),
-                group_id=_id_by_name(groups, group, "группы кампаний"),
-                traffic_source_id=_id_by_name(sources, source, "источника трафика"),
+            self._group_and_source = (
+                _id_by_name(groups, group, "группы кампаний"),
+                _id_by_name(sources, source, "источника трафика"),
             )
-        return self._placement
+        group_id, traffic_source_id = self._group_and_source
+        return Placement(domain_id, group_id, traffic_source_id)
 
     async def create_campaign(self, name: CampaignName, placement: Placement) -> int:
         campaign = await self._request(
@@ -146,6 +144,9 @@ class KeitaroClient:
 
     async def list_offers(self) -> list[OfferSummary]:
         return [OfferSummary(o["id"], o["name"]) for o in await self._request("GET", "/offers")]
+
+    async def list_domains(self) -> list[DomainSummary]:
+        return [DomainSummary(d["id"], d["name"]) for d in await self._request("GET", "/domains")]
 
     async def _request(
         self, method: str, path: str, *, not_found: str | None = None, **kwargs: Any

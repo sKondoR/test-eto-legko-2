@@ -39,7 +39,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     keitaro = KeitaroClient(
         settings.keitaro_url,
         settings.keitaro_api_key,
-        domain=settings.keitaro_domain,
         group=settings.keitaro_group,
         source=settings.keitaro_source,
     )

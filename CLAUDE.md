@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Test assignment (see `TASK.md`): a web wrapper over the Keitaro ad tracker (`https://tlgk.host`, Keitaro 10.3.x).
 
-1. **Campaign creator** — takes name, geo (one or more ISO country codes) and a Keitaro offer; creates a campaign with two flows.
+1. **Campaign creator** — takes name, domain, geo (one or more ISO country codes) and a Keitaro offer; creates a campaign with two flows.
 2. **Campaign editor** — adds/removes offers in an existing campaign's offer flow; shares must be correct.
 
 Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it **locally only** from README (no cloud deploy). Required stack: FastAPI + SQLAlchemy, README must cover migrations and launch.
@@ -54,7 +54,7 @@ Domain rules:
 
 Campaign shape (matches the reference screenshots in `TASK.md`):
 
-- Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`. The names are Keitaro adapter config: `KeitaroPort.resolve_placement()` takes no arguments, and the adapter resolves the IDs once and caches them.
+- Domain is picked in the create form from `GET /api/domains` (= Keitaro `GET /domains`, first one preselected) and sent as `domain_id`: the task's `in.posdk.xyz` does not exist in the tracker (see README). Group / traffic source come from `.env` **by name** (`FORTESTS`, `FORTESTS`), resolved via `GET /groups?type=campaigns` and `GET /traffic_sources`; `KeitaroPort.resolve_placement(domain_id)` resolves those two once, caches them and adds the domain ID.
 - Flow 1: `regular`, position 1, filter `{name: "country", mode: "accept", payload: [geo…]}`, `schema: "redirect"`, `action_type: "http"`, `action_payload: "https://google.com"`.
 - Flow 2: `default`, position 2, `schema: "landings"`, `action_type: "http"`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only. The editor opens and saves only campaigns whose name starts with `test_kondrashin_` (`is_ours`); other candidates' campaigns in the tracker must never be touched.
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.
@@ -65,8 +65,8 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 ## Our API (`app/api/routes.py`, wiring in `app/main.py` lifespan)
 
 - `GET /api/config` — name prefix, `DEFAULT_GEO`, ISO country list.
-- `GET /api/offers` — Keitaro offers (`KeitaroPort.list_offers`).
-- `GET /api/campaigns` — our `test_kondrashin_*` campaigns; `POST /api/campaigns` `{name_suffix, countries, offer_id}` → 201 `{id}`.
+- `GET /api/offers` — Keitaro offers (`KeitaroPort.list_offers`); `GET /api/domains` — Keitaro domains (`KeitaroPort.list_domains`).
+- `GET /api/campaigns` — our `test_kondrashin_*` campaigns; `POST /api/campaigns` `{name_suffix, countries, offer_id, domain_id}` → 201 `{id}`.
 - `GET /api/campaigns/{id}` — editor view: geo, offers, `disabled_offer_ids`, `is_even`, history (`CampaignLog.offer_history`, newest first).
 - `PUT /api/campaigns/{id}/offers` `{expected, offer_ids}` → `{offers}`; `expected` is what the editor showed, a mismatch gives 409.
 - Route tests put fakes into `app.state` and use `TestClient(app)` without `with`, so the lifespan (real Keitaro and Postgres) does not run.
@@ -84,7 +84,7 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 
 ## Environment
 
-`.env` (template `.env.example`): `KEITARO_URL`, `KEITARO_API_KEY`, `KEITARO_DOMAIN`, `KEITARO_GROUP`, `KEITARO_SOURCE`, `DEFAULT_GEO` (comma-separated, validated at startup, exposed to the UI via `GET /api/config`), Postgres connection settings. `LOGIN`/`PASSWORD` are only for a human logging into the Keitaro admin.
+`.env` (template `.env.example`): `KEITARO_URL`, `KEITARO_API_KEY`, `KEITARO_GROUP`, `KEITARO_SOURCE`, `DEFAULT_GEO` (comma-separated, validated at startup, exposed to the UI via `GET /api/config`), Postgres connection settings. `LOGIN`/`PASSWORD` are only for a human logging into the Keitaro admin.
 
 ## Conventions
 
