@@ -50,7 +50,7 @@ Domain rules:
 
 Campaign shape (matches the reference screenshots in `TASK.md`):
 
-- Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`.
+- Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`. The names are Keitaro adapter config: `KeitaroPort.resolve_placement()` takes no arguments, and the adapter resolves the IDs once and caches them.
 - Flow 1: `regular`, position 1, filter `{name: "country", mode: "accept", payload: [geo…]}`, HTTP redirect to `https://google.com` (verify exact `action_type` via `GET /streams_actions`).
 - Flow 2: `default`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only.
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.

@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 from app.domain.campaign_name import PREFIX, CampaignName
 from app.domain.countries import parse_countries
@@ -8,27 +7,16 @@ from app.domain.plan import build_campaign_plan
 from app.domain.ports import CampaignLog, CampaignSummary, KeitaroPort
 
 
-@dataclass(frozen=True)
-class PlacementNames:
-    """Домен, группа и источник новых кампаний — по именам, как в админке Keitaro."""
-
-    domain: str
-    group: str
-    source: str
-
-
 class CampaignService:
-    def __init__(self, keitaro: KeitaroPort, log: CampaignLog, placement: PlacementNames) -> None:
+    def __init__(self, keitaro: KeitaroPort, log: CampaignLog) -> None:
         self._keitaro = keitaro
         self._log = log
-        self._placement = placement
 
     async def create(self, name_suffix: str, countries: Sequence[str], offer_id: int) -> int:
         """Создаёт кампанию с двумя потоками. Если поток не создался — кампания уходит в архив."""
         name = CampaignName.from_suffix(name_suffix)
         geo = parse_countries(countries)
-        p = self._placement
-        placement = await self._keitaro.resolve_placement(p.domain, p.group, p.source)
+        placement = await self._keitaro.resolve_placement()
         plan = build_campaign_plan(name, geo, offer_id, placement)
 
         campaign_id: int | None = None

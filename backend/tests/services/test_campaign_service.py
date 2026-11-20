@@ -4,16 +4,15 @@ from app.domain.errors import DomainError, KeitaroError
 from app.domain.offers import OfferShare
 from app.domain.plan import Placement
 from app.domain.ports import CampaignState
-from app.services.campaigns import CampaignService, PlacementNames
+from app.services.campaigns import CampaignService
 from tests.services.fakes import FakeKeitaro, FakeLog
 
-NAMES = PlacementNames(domain="in.posdk.xyz", group="FORTESTS", source="FORTESTS")
 PLACEMENT = Placement(domain_id=5, group_id=7, traffic_source_id=9)
 
 
 @pytest.fixture
 def keitaro() -> FakeKeitaro:
-    return FakeKeitaro(placements={("in.posdk.xyz", "FORTESTS", "FORTESTS"): PLACEMENT})
+    return FakeKeitaro(placement=PLACEMENT)
 
 
 @pytest.fixture
@@ -23,7 +22,7 @@ def log() -> FakeLog:
 
 @pytest.fixture
 def service(keitaro: FakeKeitaro, log: FakeLog) -> CampaignService:
-    return CampaignService(keitaro, log, NAMES)
+    return CampaignService(keitaro, log)
 
 
 async def test_creates_campaign_with_geo_and_offer_flows(
@@ -61,7 +60,7 @@ async def test_invalid_input_never_reaches_keitaro(
 async def test_unknown_placement_creates_nothing(
     service: CampaignService, keitaro: FakeKeitaro, log: FakeLog
 ) -> None:
-    keitaro.placements.clear()
+    keitaro.placement = None
     with pytest.raises(KeitaroError):
         await service.create("c1", ["AU"], offer_id=1)
     assert keitaro.campaigns == {}

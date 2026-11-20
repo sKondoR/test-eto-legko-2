@@ -2,11 +2,7 @@ import pytest
 
 from app.domain.errors import DomainError
 from app.domain.offers import OfferSet, OfferShare, diff, is_even_split
-
-
-def shares(*pairs: tuple[int, int]) -> tuple[OfferShare, ...]:
-    return tuple(OfferShare(offer_id, share) for offer_id, share in pairs)
-
+from tests.helpers import shares
 
 # OfferSet — то, что сохраняем в Keitaro: строгие правила.
 

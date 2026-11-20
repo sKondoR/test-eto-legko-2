@@ -26,7 +26,9 @@ class CampaignState:
 
 
 class KeitaroPort(Protocol):
-    async def resolve_placement(self, domain: str, group: str, source: str) -> Placement: ...
+    async def resolve_placement(self) -> Placement:
+        """ID домена, группы и источника. Имена берутся из настроек адаптера."""
+        ...
 
     async def create_campaign(self, name: CampaignName, placement: Placement) -> int: ...
 

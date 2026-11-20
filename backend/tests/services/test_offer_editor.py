@@ -4,14 +4,11 @@ from app.domain.errors import ConflictError, DomainError
 from app.domain.offers import OfferShare
 from app.domain.ports import CampaignState
 from app.services.offer_editor import OfferEditor
+from tests.helpers import shares
 from tests.services.fakes import FakeKeitaro, FakeLog
 
 CAMPAIGN_ID = 1
 FLOW_ID = 10
-
-
-def shares(*pairs: tuple[int, int]) -> tuple[OfferShare, ...]:
-    return tuple(OfferShare(offer_id, share) for offer_id, share in pairs)
 
 
 def keitaro_with(offers: tuple[OfferShare, ...], flow_id: int | None = FLOW_ID) -> FakeKeitaro:

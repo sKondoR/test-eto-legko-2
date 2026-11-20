@@ -11,24 +11,23 @@ from app.domain.ports import CampaignState, CampaignSummary
 
 @dataclass
 class FakeKeitaro:
-    placements: dict[tuple[str, str, str], Placement] = field(default_factory=dict)
+    placement: Placement | None = None  # None — размещение в Keitaro не найдено
     campaigns: dict[int, CampaignState] = field(default_factory=dict)
     archived: list[int] = field(default_factory=list)
     fail_on: set[str] = field(default_factory=set)  # имена методов, которые бросят KeitaroError
     calls: list[str] = field(default_factory=list)
-    _next_id: int = 100
+    _next_id: int = field(default=100, init=False, repr=False)
 
     def _call(self, method: str) -> None:
         self.calls.append(method)
         if method in self.fail_on:
             raise KeitaroError(f"{method} упал")
 
-    async def resolve_placement(self, domain: str, group: str, source: str) -> Placement:
+    async def resolve_placement(self) -> Placement:
         self._call("resolve_placement")
-        try:
-            return self.placements[(domain, group, source)]
-        except KeyError:
-            raise KeitaroError("Размещение не найдено") from None
+        if self.placement is None:
+            raise KeitaroError("Размещение не найдено")
+        return self.placement
 
     async def create_campaign(self, name: CampaignName, placement: Placement) -> int:
         self._call("create_campaign")
