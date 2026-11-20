@@ -22,13 +22,13 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 │  └─ src/components/   CampaignList, CreateCampaign, OfferEditor, SplitBar, pickers, Toasts, Icon (SVG icons, no glyphs), Warning (amber notice)
 ├─ packages/api-types/  TS types generated from FastAPI OpenAPI (openapi-typescript)
 ├─ backend/             Python 3.13, uv, FastAPI + SQLAlchemy + Alembic, Postgres
-└─ docker-compose.yml   db (Postgres) + app (multi-stage: node:24-alpine builds web → FastAPI serves dist)
+└─ docker-compose.yml   db (Postgres) only; `pnpm build` puts web into apps/web/dist, which FastAPI serves
 ```
 
 - `pnpm dev` — uvicorn + Vite together; Vite proxies `/api` to uvicorn.
 - `pnpm gen:api` — dump OpenAPI via `python -m app.openapi_dump` (no server needed) and regenerate `packages/api-types` (run after changing API schemas).
 - `pnpm lint` — ruff + prettier + svelte-check.
-- `docker compose up db` — Postgres only (for running backend via uv); `docker compose up` — whole app.
+- `docker compose up -d db` — Postgres (the only compose service; backend runs via uv).
 - Migrations: `pnpm db:migrate` (= `uv run --directory backend alembic upgrade head`); new one: `uv run --directory backend alembic revision --autogenerate -m "..."`. Migrations live in `backend/migrations/` (not `alembic/`: that name shadows the `alembic` package for isort); `migrations/env.py` takes the URL from `config.attributes["url"]` (tests) or `DATABASE_URL`.
 - Postgres listens on host port **5434** (5432/5433 are often taken by other local Postgres instances).
 - Tests: `pnpm test` (needs `docker compose up -d db`: DB tests migrate `keitaro_test` down to base and up to head, then truncate per test); backend only `uv run --directory backend pytest` (single: `... pytest tests/domain/test_shares.py::test_name`); web: `pnpm --filter web test` (vitest).
