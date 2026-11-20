@@ -18,6 +18,8 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 ```
 /                       pnpm workspace (pnpm 12.16.1 via corepack, Node >=24)
 ├─ apps/web/            Svelte 5 + Vite + TypeScript + Tailwind, SPA (no SvelteKit)
+│  ├─ src/lib/          api.ts (typed fetch, ApiError.detail → toast), offers.ts (editor logic, vitest), format.ts, toasts
+│  └─ src/components/   CampaignList, CreateCampaign, OfferEditor, SplitBar, pickers, Toasts
 ├─ packages/api-types/  TS types generated from FastAPI OpenAPI (openapi-typescript)
 ├─ backend/             Python 3.13, uv, FastAPI + SQLAlchemy + Alembic, Postgres
 └─ docker-compose.yml   db (Postgres) + app (multi-stage: node:24-alpine builds web → FastAPI serves dist)
@@ -44,7 +46,7 @@ Dependencies point one way: `api → services → domain ← adapters`.
 
 Domain rules:
 
-- `distribute_shares(n)`: 100 split evenly, remainder goes to the **last** offer (3 → 33/33/34). Same function duplicated in TS (`apps/web`) for instant preview; pytest and vitest cover the same cases.
+- `distribute_shares(n)`: 100 split evenly, remainder goes to the **last** offer (3 → 33/33/34). Same function duplicated in TS (`apps/web`) for instant preview; pytest and vitest cover the same cases. `is_even_split` is also copied (`isEvenSplit` in `apps/web/src/lib/offers.ts`) so the Save button is off exactly when saving would change nothing.
 - `CampaignName`: must start with `test_kondrashin_`, chars `[a-z0-9_]`; UI shows the prefix as fixed.
 - `CountryCode`: ISO 3166-1 alpha-2 from a static list.
 - `OfferSet` is what we **write** to Keitaro: ordered `OfferShare(offer_id, share)`, never empty, no duplicates, each share 0..100, sum = 100; built with `OfferSet.evenly(ids)` from the editor's final offer list (no separate add/remove on the backend). What we **read** from Keitaro stays a plain `tuple[OfferShare, ...]` with no validation (it may be hand-edited, empty or broken) so the editor can always open and repair a campaign; `is_even_split(shares)` tells the UI to warn that saving overwrites manual shares (remainder position doesn't matter); the editor also reports a flow as not even when `CampaignState.disabled_offer_ids` is non-empty (offers disabled in Keitaro keep a share but get no traffic). `diff(before_from_keitaro, after: OfferSet)` feeds `offer_changes`. All rule violations raise `DomainError` (Russian message shown to the user).
@@ -87,6 +89,7 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 ## Conventions
 
 - UI text is in Russian; errors shown as toasts; buttons disabled while a request is in flight.
+- UI design: cool palette (fog `#EEF1F4`, ink `#1B2430`, cobalt `#2747D9`, amber for warnings), Onest font via `@fontsource-variable/onest` (no CDN), the split bar is the one bold element. Theme is `@theme static` so `--color-seg-1..5` (set via `style`, not classes) are always emitted; primary button is the `btn-primary` utility. Selected campaign lives in the URL hash; `OfferEditor` is keyed by campaign id, so it remounts per campaign.
 - Keep README current with setup/run steps (corepack enable, versions, `.env`, DB, migrations, both run modes) in the same change that alters them.
 
 ## Git workflow

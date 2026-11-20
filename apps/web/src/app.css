@@ -1,1 +1,45 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/onest';
+
+/* static: цвета сегментов подставляются через style, а не классы, но в CSS попасть должны. */
+@theme static {
+  --font-sans: 'Onest Variable', system-ui, sans-serif;
+
+  --color-fog: #eef1f4;
+  --color-ink: #1b2430;
+  --color-muted: #5b6676;
+  --color-line: #d5dbe3;
+  --color-cobalt: #2747d9;
+  --color-cobalt-dark: #1d36a8;
+  --color-amber: #c98a12;
+  --color-danger: #c2362f;
+  /* Сегменты полосы распределения, по кругу (segmentColors в lib/offers.ts). */
+  --color-seg-1: #2747d9;
+  --color-seg-2: #0e8c83;
+  --color-seg-3: #c98a12;
+  --color-seg-4: #8a3fa8;
+  --color-seg-5: #4a5565;
+}
+
+@utility btn-primary {
+  @apply rounded-md bg-cobalt px-5 py-2.5 font-medium text-white hover:bg-cobalt-dark disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@layer base {
+  body {
+    @apply bg-fog font-sans text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-cobalt;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}

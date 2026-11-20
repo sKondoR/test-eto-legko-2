@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@app/api-types": "workspace:*"
+    "@app/api-types": "workspace:*",
+    "@fontsource-variable/onest": "^5.3.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
