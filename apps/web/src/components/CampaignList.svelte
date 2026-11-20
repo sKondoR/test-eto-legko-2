@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CampaignSummary } from '../lib/api'
+  import Icon from './Icon.svelte'
 
   let {
     campaigns,
@@ -15,20 +16,20 @@
 </script>
 
 <nav aria-label="Кампании" class="flex flex-col gap-3">
-  <div class="flex items-baseline justify-between gap-2">
-    <h2 class="text-lg font-semibold">Кампании</h2>
-    <button
-      type="button"
-      class={[
-        'rounded-md px-3 py-1.5 text-sm font-medium',
-        selected === 'new' ? 'bg-ink text-white' : 'bg-white text-ink hover:bg-line',
-      ]}
-      aria-current={selected === 'new' ? 'page' : undefined}
-      onclick={() => onselect('new')}
-    >
-      Новая кампания
-    </button>
-  </div>
+  <h2 class="text-lg font-semibold">Кампании</h2>
+  <!-- Главное действие списка: синяя кнопка во всю ширину; открытую форму отмечает кольцо. -->
+  <button
+    type="button"
+    class={[
+      'btn-primary flex w-full items-center justify-center gap-2',
+      selected === 'new' && 'ring-2 ring-cobalt/30 ring-offset-2 ring-offset-fog',
+    ]}
+    aria-current={selected === 'new' ? 'page' : undefined}
+    onclick={() => onselect('new')}
+  >
+    <Icon name="plus" />
+    Новая кампания
+  </button>
 
   {#if campaigns === null}
     <p class="text-sm text-muted">Загружаю список…</p>
