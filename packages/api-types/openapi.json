@@ -86,7 +86,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/OfferOut"
+                    "$ref": "#/components/schemas/OfferSummary"
                   },
                   "type": "array",
                   "title": "Response List Offers Api Offers Get"
@@ -138,7 +138,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/CampaignOut"
+                    "$ref": "#/components/schemas/CampaignSummary"
                   },
                   "type": "array",
                   "title": "Response List Campaigns Api Campaigns Get"
@@ -435,7 +435,7 @@
         ],
         "title": "CampaignCreatedOut"
       },
-      "CampaignOut": {
+      "CampaignSummary": {
         "properties": {
           "id": {
             "type": "integer",
@@ -451,7 +451,7 @@
           "id",
           "name"
         ],
-        "title": "CampaignOut"
+        "title": "CampaignSummary"
       },
       "ConfigOut": {
         "properties": {
@@ -501,7 +501,7 @@
           },
           "offers": {
             "items": {
-              "$ref": "#/components/schemas/OfferShareModel"
+              "$ref": "#/components/schemas/OfferShare"
             },
             "type": "array",
             "title": "Offers"
@@ -572,14 +572,14 @@
           },
           "before": {
             "items": {
-              "$ref": "#/components/schemas/OfferShareModel"
+              "$ref": "#/components/schemas/OfferShare"
             },
             "type": "array",
             "title": "Before"
           },
           "after": {
             "items": {
-              "$ref": "#/components/schemas/OfferShareModel"
+              "$ref": "#/components/schemas/OfferShare"
             },
             "type": "array",
             "title": "After"
@@ -609,25 +609,7 @@
         ],
         "title": "HistoryEntryOut"
       },
-      "OfferOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "OfferOut"
-      },
-      "OfferShareModel": {
+      "OfferShare": {
         "properties": {
           "offer_id": {
             "type": "integer",
@@ -643,13 +625,31 @@
           "offer_id",
           "share"
         ],
-        "title": "OfferShareModel"
+        "title": "OfferShare"
+      },
+      "OfferSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "OfferSummary"
       },
       "OffersSaveIn": {
         "properties": {
           "expected": {
             "items": {
-              "$ref": "#/components/schemas/OfferShareModel"
+              "$ref": "#/components/schemas/OfferShare"
             },
             "type": "array",
             "title": "Expected"
@@ -673,7 +673,7 @@
         "properties": {
           "offers": {
             "items": {
-              "$ref": "#/components/schemas/OfferShareModel"
+              "$ref": "#/components/schemas/OfferShare"
             },
             "type": "array",
             "title": "Offers"

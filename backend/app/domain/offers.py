@@ -66,12 +66,16 @@ class OfferChange:
         return self.before == self.after
 
 
-def diff(before: Sequence[OfferShare], after: OfferSet) -> OfferChange:
-    """before — как было в Keitaro (любое), after — что сохраняем."""
+def diff(before: Sequence[OfferShare], after: Sequence[OfferShare]) -> OfferChange:
+    """before — как было в Keitaro (любое), after — что сохранили (OfferSet.shares).
+
+    after не проверяется: история читает его из БД, и смена правил OfferSet не должна её ломать.
+    """
     before_ids = [s.offer_id for s in before]
+    after_ids = [s.offer_id for s in after]
     return OfferChange(
         before=tuple(before),
-        after=after.shares,
-        added=tuple(i for i in after.offer_ids if i not in before_ids),
-        removed=tuple(dict.fromkeys(i for i in before_ids if i not in after.offer_ids)),
+        after=tuple(after),
+        added=tuple(i for i in after_ids if i not in before_ids),
+        removed=tuple(dict.fromkeys(i for i in before_ids if i not in after_ids)),
     )

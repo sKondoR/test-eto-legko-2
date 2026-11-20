@@ -125,8 +125,8 @@ export interface components {
             /** Id */
             id: number;
         };
-        /** CampaignOut */
-        CampaignOut: {
+        /** CampaignSummary */
+        CampaignSummary: {
             /** Id */
             id: number;
             /** Name */
@@ -150,7 +150,7 @@ export interface components {
             /** Geo */
             geo: string[];
             /** Offers */
-            offers: components["schemas"]["OfferShareModel"][];
+            offers: components["schemas"]["OfferShare"][];
             /** Disabled Offer Ids */
             disabled_offer_ids: number[];
             /** Is Even */
@@ -176,39 +176,39 @@ export interface components {
              */
             changed_at: string;
             /** Before */
-            before: components["schemas"]["OfferShareModel"][];
+            before: components["schemas"]["OfferShare"][];
             /** After */
-            after: components["schemas"]["OfferShareModel"][];
+            after: components["schemas"]["OfferShare"][];
             /** Added */
             added: number[];
             /** Removed */
             removed: number[];
         };
-        /** OfferOut */
-        OfferOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-        };
-        /** OfferShareModel */
-        OfferShareModel: {
+        /** OfferShare */
+        OfferShare: {
             /** Offer Id */
             offer_id: number;
             /** Share */
             share: number;
         };
+        /** OfferSummary */
+        OfferSummary: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** OffersSaveIn */
         OffersSaveIn: {
             /** Expected */
-            expected: components["schemas"]["OfferShareModel"][];
+            expected: components["schemas"]["OfferShare"][];
             /** Offer Ids */
             offer_ids: number[];
         };
         /** OffersSavedOut */
         OffersSavedOut: {
             /** Offers */
-            offers: components["schemas"]["OfferShareModel"][];
+            offers: components["schemas"]["OfferShare"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -316,7 +316,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OfferOut"][];
+                    "application/json": components["schemas"]["OfferSummary"][];
                 };
             };
             /** @description Not Found */
@@ -363,7 +363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignOut"][];
+                    "application/json": components["schemas"]["CampaignSummary"][];
                 };
             };
             /** @description Not Found */

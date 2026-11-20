@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -15,7 +15,8 @@ from app.domain.errors import ConflictError, DomainError, KeitaroError, NotFound
 from app.services.campaigns import CampaignService
 from app.services.offer_editor import OfferEditor
 
-# HTTP-коды ошибок сервисов. NotFoundError — подкласс KeitaroError: его обработчик точнее.
+# HTTP-коды ошибок сервисов. Starlette ищет обработчик по MRO, поэтому NotFoundError
+# (подкласс KeitaroError) получает свой 404, а не 502.
 ERROR_STATUS = {DomainError: 422, NotFoundError: 404, ConflictError: 409, KeitaroError: 502}
 
 
@@ -43,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Keitaro campaigns", lifespan=lifespan)
 
 
-def _error_handler(status: int):
+def _error_handler(status: int) -> Callable[[Request, Exception], Awaitable[JSONResponse]]:
     async def handle(request: Request, error: Exception) -> JSONResponse:
         return JSONResponse({"detail": str(error)}, status_code=status)
 

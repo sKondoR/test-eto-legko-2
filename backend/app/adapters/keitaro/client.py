@@ -124,9 +124,10 @@ class KeitaroClient:
         return campaigns
 
     async def get_campaign(self, campaign_id: int) -> CampaignState:
+        not_found = f"Кампании {campaign_id} нет в Keitaro: её удалили или отправили в архив"
         campaign, streams = await asyncio.gather(
-            self._request("GET", f"/campaigns/{campaign_id}"),
-            self._request("GET", f"/campaigns/{campaign_id}/streams"),
+            self._request("GET", f"/campaigns/{campaign_id}", not_found=not_found),
+            self._request("GET", f"/campaigns/{campaign_id}/streams", not_found=not_found),
         )
         offer_flow = next((s for s in streams if s["type"] == OFFER_FLOW_TYPE), None)
         offers = offer_flow["offers"] if offer_flow else []
@@ -146,14 +147,17 @@ class KeitaroClient:
     async def list_offers(self) -> list[OfferSummary]:
         return [OfferSummary(o["id"], o["name"]) for o in await self._request("GET", "/offers")]
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    async def _request(
+        self, method: str, path: str, *, not_found: str | None = None, **kwargs: Any
+    ) -> Any:
+        """not_found — текст NotFoundError на 404. Без него 404 — обычный сбой Keitaro (502):
+        например, неверный KEITARO_URL не должен выглядеть для пользователя как «не найдено»."""
         try:
             response = await self._http.request(method, path, **kwargs)
         except httpx2.TransportError as error:
             raise KeitaroError(f"Keitaro недоступен: {error}") from error
-        if response.status_code == 404:
-            # Тело 404 — HTML-страница nginx, показывать её пользователю незачем.
-            raise NotFoundError(f"В Keitaro не найдено (404): {method} {path}")
+        if response.status_code == 404 and not_found:
+            raise NotFoundError(not_found)
         if response.is_error:
             raise KeitaroError(
                 f"Keitaro вернул ошибку {response.status_code} на {method} {path}: "

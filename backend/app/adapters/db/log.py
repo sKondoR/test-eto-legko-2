@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.db.models import Base, CampaignRow, OfferChangeRow
-from app.domain.offers import OfferChange, OfferSet, OfferShare, diff
+from app.domain.offers import OfferChange, OfferShare, diff
 from app.domain.plan import CampaignPlan
 from app.domain.ports import OfferHistoryEntry
 
@@ -39,10 +39,8 @@ class SqlCampaignLog:
         )
         async with self._sessions() as session:
             rows = (await session.scalars(query)).all()
-        # after всегда записан из OfferSet, поэтому собирается обратно без ошибок.
         return [
-            OfferHistoryEntry(r.changed_at, diff(_shares(r.before), OfferSet(_shares(r.after))))
-            for r in rows
+            OfferHistoryEntry(r.changed_at, diff(_shares(r.before), _shares(r.after))) for r in rows
         ]
 
     async def _add(self, row: Base) -> None:

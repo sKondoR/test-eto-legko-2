@@ -40,7 +40,7 @@ class OfferEditor:
         if campaign.offers != tuple(expected):
             raise ConflictError("Поток изменили в Keitaro. Обновите страницу и повторите правку")
 
-        change = diff(campaign.offers, offers)
+        change = diff(campaign.offers, offers.shares)
         if not change.is_empty:
             await self._keitaro.update_offer_flow(campaign.offer_flow_id, offers)
             await self._log.offers_changed(campaign_id, change)

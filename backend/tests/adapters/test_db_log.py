@@ -58,8 +58,8 @@ async def test_logs_offer_changes_for_any_campaign(
     sessions: async_sessionmaker[AsyncSession],
 ) -> None:
     log = SqlCampaignLog(sessions)
-    first = diff(shares((1, 70), (2, 30)), OfferSet.evenly([2, 3, 4]))
-    second = diff(first.after, OfferSet.evenly([2]))
+    first = diff(shares((1, 70), (2, 30)), OfferSet.evenly([2, 3, 4]).shares)
+    second = diff(first.after, OfferSet.evenly([2]).shares)
 
     # Кампании 5 нет в campaigns: редактор открывает и созданные вне приложения.
     await log.offers_changed(5, first)
@@ -93,10 +93,10 @@ async def test_reads_offer_history_newest_first(
     sessions: async_sessionmaker[AsyncSession],
 ) -> None:
     log = SqlCampaignLog(sessions)
-    first = diff(shares((1, 100)), OfferSet.evenly([1, 2]))
-    second = diff(first.after, OfferSet.evenly([2]))
+    first = diff(shares((1, 100)), OfferSet.evenly([1, 2]).shares)
+    second = diff(first.after, OfferSet.evenly([2]).shares)
     await log.offers_changed(5, first)
-    await log.offers_changed(6, diff((), OfferSet.evenly([9])))
+    await log.offers_changed(6, diff((), OfferSet.evenly([9]).shares))
     await log.offers_changed(5, second)
 
     history = await log.offer_history(5)

@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -6,19 +5,16 @@ from fastapi import APIRouter, Depends, Request
 from app.api.schemas import (
     CampaignCreatedOut,
     CampaignCreateIn,
-    CampaignOut,
     ConfigOut,
     EditorOut,
     ErrorOut,
     HistoryEntryOut,
-    OfferOut,
-    OfferShareModel,
     OffersSavedOut,
     OffersSaveIn,
 )
 from app.domain.campaign_name import PREFIX
 from app.domain.countries import ISO_CODES
-from app.domain.offers import OfferShare
+from app.domain.ports import CampaignSummary, OfferSummary
 from app.services.campaigns import CampaignService
 from app.services.offer_editor import OfferEditor
 
@@ -51,13 +47,13 @@ def get_config(request: Request) -> ConfigOut:
 
 
 @router.get("/offers")
-async def list_offers(campaigns: Campaigns) -> list[OfferOut]:
-    return [OfferOut(id=o.id, name=o.name) for o in await campaigns.list_offers()]
+async def list_offers(campaigns: Campaigns) -> list[OfferSummary]:
+    return await campaigns.list_offers()
 
 
 @router.get("/campaigns")
-async def list_campaigns(campaigns: Campaigns) -> list[CampaignOut]:
-    return [CampaignOut(id=c.id, name=c.name) for c in await campaigns.list_ours()]
+async def list_campaigns(campaigns: Campaigns) -> list[CampaignSummary]:
+    return await campaigns.list_ours()
 
 
 @router.post("/campaigns", status_code=201)
@@ -73,17 +69,17 @@ async def open_editor(campaign_id: int, editor: Editor) -> EditorOut:
     return EditorOut(
         id=campaign.id,
         name=campaign.name,
-        geo=list(campaign.geo_countries),
-        offers=_shares_out(campaign.offers),
-        disabled_offer_ids=list(campaign.disabled_offer_ids),
+        geo=campaign.geo_countries,
+        offers=campaign.offers,
+        disabled_offer_ids=campaign.disabled_offer_ids,
         is_even=view.is_even,
         history=[
             HistoryEntryOut(
                 changed_at=entry.changed_at,
-                before=_shares_out(entry.change.before),
-                after=_shares_out(entry.change.after),
-                added=list(entry.change.added),
-                removed=list(entry.change.removed),
+                before=entry.change.before,
+                after=entry.change.after,
+                added=entry.change.added,
+                removed=entry.change.removed,
             )
             for entry in view.history
         ],
@@ -92,10 +88,5 @@ async def open_editor(campaign_id: int, editor: Editor) -> EditorOut:
 
 @router.put("/campaigns/{campaign_id}/offers")
 async def save_offers(campaign_id: int, body: OffersSaveIn, editor: Editor) -> OffersSavedOut:
-    expected = [OfferShare(s.offer_id, s.share) for s in body.expected]
-    saved = await editor.save(campaign_id, expected, body.offer_ids)
-    return OffersSavedOut(offers=_shares_out(saved.shares))
-
-
-def _shares_out(shares: Sequence[OfferShare]) -> list[OfferShareModel]:
-    return [OfferShareModel(offer_id=s.offer_id, share=s.share) for s in shares]
+    saved = await editor.save(campaign_id, body.expected, body.offer_ids)
+    return OffersSavedOut(offers=saved.shares)

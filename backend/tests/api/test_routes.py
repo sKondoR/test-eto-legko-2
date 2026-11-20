@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,19 +18,22 @@ def keitaro() -> FakeKeitaro:
 
 
 @pytest.fixture
-def client(keitaro: FakeKeitaro) -> Iterator[TestClient]:
+def client(keitaro: FakeKeitaro) -> TestClient:
     # Без `with TestClient(...)` lifespan не запускается: порты подменяем фейками.
     log = FakeLog()
     app.state.default_geo = parse_countries(["AU"])
     app.state.campaigns = CampaignService(keitaro, log)
     app.state.editor = OfferEditor(keitaro, log)
-    yield TestClient(app)
+    return TestClient(app)
 
 
-def create(client: TestClient, suffix: str = "c1") -> int:
-    response = client.post(
-        "/api/campaigns", json={"name_suffix": suffix, "countries": ["au"], "offer_id": 18813}
-    )
+def post_campaign(client: TestClient, **fields: Any) -> Any:
+    body = {"name_suffix": "c1", "countries": ["au"], "offer_id": 18813} | fields
+    return client.post("/api/campaigns", json=body)
+
+
+def create(client: TestClient) -> int:
+    response = post_campaign(client)
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -58,9 +61,7 @@ def test_creates_and_lists_only_our_campaigns(client: TestClient, keitaro: FakeK
 
 
 def test_domain_error_is_422_with_russian_detail(client: TestClient) -> None:
-    response = client.post(
-        "/api/campaigns", json={"name_suffix": "Bad Name", "countries": ["AU"], "offer_id": 1}
-    )
+    response = post_campaign(client, name_suffix="Bad Name")
 
     assert response.status_code == 422
     assert response.json()["detail"].startswith("Имя кампании")
@@ -69,9 +70,7 @@ def test_domain_error_is_422_with_russian_detail(client: TestClient) -> None:
 def test_keitaro_error_is_502(client: TestClient, keitaro: FakeKeitaro) -> None:
     keitaro.fail_on.add("create_offer_flow")
 
-    response = client.post(
-        "/api/campaigns", json={"name_suffix": "c1", "countries": ["AU"], "offer_id": 1}
-    )
+    response = post_campaign(client)
 
     assert response.status_code == 502
     assert "create_offer_flow" in response.json()["detail"]

@@ -274,8 +274,17 @@ async def test_not_found_becomes_not_found_error(client: KeitaroClient, fake: Ke
     fake.routes[("GET", "/campaigns/7")] = httpx2.Response(404, html="<h1>404 Not Found</h1>")
     fake.routes[("GET", "/campaigns/7/streams")] = []
 
-    with pytest.raises(NotFoundError, match="404"):
+    with pytest.raises(NotFoundError, match="Кампании 7 нет"):
         await client.get_campaign(7)
+
+
+async def test_other_404_is_a_keitaro_failure(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("GET", "/offers")] = httpx2.Response(404, html="<h1>404 Not Found</h1>")
+
+    with pytest.raises(KeitaroError, match="404") as error:
+        await client.list_offers()
+
+    assert not isinstance(error.value, NotFoundError)
 
 
 async def test_lists_offers(client: KeitaroClient, fake: KeitaroStub) -> None:
