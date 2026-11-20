@@ -19,10 +19,9 @@ class Placement:
 
 @dataclass(frozen=True)
 class GeoRedirectFlow:
-    """Поток 1: трафик из выбранных стран уходит на redirect_url."""
+    """Поток 1: трафик из выбранных стран уходит на GOOGLE_URL."""
 
     countries: tuple[CountryCode, ...]
-    redirect_url: str = GOOGLE_URL
 
     def __post_init__(self) -> None:
         if not self.countries:

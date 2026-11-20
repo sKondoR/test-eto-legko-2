@@ -13,7 +13,11 @@ class OfferShare:
 
 @dataclass(frozen=True)
 class OfferSet:
-    """Офферы потока с долями трафика. Порядок важен: остаток деления у последнего."""
+    """Офферы потока, которые сохраняем в Keitaro. Порядок важен: остаток у последнего.
+
+    Состояние, прочитанное из Keitaro, сюда не оборачивается: его правили вручную,
+    и оно может нарушать правила. Оно живёт как tuple[OfferShare, ...].
+    """
 
     shares: tuple[OfferShare, ...]
 
@@ -27,6 +31,8 @@ class OfferSet:
             if not 0 <= s.share <= 100:
                 raise DomainError(f"Доля оффера {s.offer_id} вне диапазона 0–100%: {s.share}")
             seen.add(s.offer_id)
+        if sum(s.share for s in self.shares) != 100:
+            raise DomainError("Сумма долей офферов должна быть 100%")
 
     @classmethod
     def evenly(cls, offer_ids: Sequence[int]) -> "OfferSet":
@@ -37,9 +43,15 @@ class OfferSet:
     def offer_ids(self) -> tuple[int, ...]:
         return tuple(s.offer_id for s in self.shares)
 
-    @property
-    def is_even(self) -> bool:
-        return [s.share for s in self.shares] == distribute_shares(len(self.shares))
+
+def is_even_split(shares: Sequence[OfferShare]) -> bool:
+    """Доли из Keitaro поделены поровну (остаток может стоять у любого оффера).
+
+    False — доли ручные или поток сломан: интерфейс предупреждает, что сохранение их перезапишет.
+    """
+    if not 1 <= len(shares) <= 100 or len({s.offer_id for s in shares}) != len(shares):
+        return False
+    return sorted(s.share for s in shares) == sorted(distribute_shares(len(shares)))
 
 
 @dataclass(frozen=True)
@@ -54,10 +66,12 @@ class OfferChange:
         return self.before == self.after
 
 
-def diff(before: OfferSet, after: OfferSet) -> OfferChange:
+def diff(before: Sequence[OfferShare], after: OfferSet) -> OfferChange:
+    """before — как было в Keitaro (любое), after — что сохраняем."""
+    before_ids = [s.offer_id for s in before]
     return OfferChange(
-        before=before.shares,
+        before=tuple(before),
         after=after.shares,
-        added=tuple(i for i in after.offer_ids if i not in before.offer_ids),
-        removed=tuple(i for i in before.offer_ids if i not in after.offer_ids),
+        added=tuple(i for i in after.offer_ids if i not in before_ids),
+        removed=tuple(dict.fromkeys(i for i in before_ids if i not in after.offer_ids)),
     )
