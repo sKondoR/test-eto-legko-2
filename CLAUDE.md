@@ -51,8 +51,8 @@ Domain rules:
 Campaign shape (matches the reference screenshots in `TASK.md`):
 
 - Domain / group / traffic source come from `.env` **by name** (`in.posdk.xyz`, `FORTESTS`, `FORTESTS`), resolved to IDs via `GET /domains`, `GET /groups?type=campaigns`, `GET /traffic_sources`. The names are Keitaro adapter config: `KeitaroPort.resolve_placement()` takes no arguments, and the adapter resolves the IDs once and caches them.
-- Flow 1: `regular`, position 1, filter `{name: "country", mode: "accept", payload: [geo…]}`, HTTP redirect to `https://google.com` (verify exact `action_type` via `GET /streams_actions`).
-- Flow 2: `default`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only. The editor opens and saves only campaigns whose name starts with `test_kondrashin_` (`is_ours`); other candidates' campaigns in the tracker must never be touched.
+- Flow 1: `regular`, position 1, filter `{name: "country", mode: "accept", payload: [geo…]}`, `schema: "redirect"`, `action_type: "http"`, `action_payload: "https://google.com"`.
+- Flow 2: `default`, position 2, `schema: "landings"`, `action_type: "http"`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only. The editor opens and saves only campaigns whose name starts with `test_kondrashin_` (`is_ours`); other candidates' campaigns in the tracker must never be touched.
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.
 - Editor saves on an explicit "Save"; before saving the service re-reads the flow and returns 409 if offers changed in Keitaro meanwhile.
 
@@ -62,7 +62,12 @@ DB tables: `campaigns` (campaigns created via the app; geo stored as array) and 
 
 - Base `{KEITARO_URL}/admin_api/v1`, header `Api-Key`. Spec: `https://admin-api.docs.keitaro.io/openapi.json`.
 - `GET /campaigns` has only `offset`/`limit` — filter by the `test_kondrashin_` prefix on our side.
-- PUT updates only the fields sent; always send the full `offers` array for a flow.
+- Cloudflare in front of the tracker answers 403 `error code: 1010` to library User-Agents such as `Python-urllib`: the adapter sends its own `User-Agent`.
+- `POST /campaigns` needs `name` and a unique `alias` (we generate it); `POST /streams` returns the created flow with `id`.
+- `PUT /streams/{id}` updates only the keys sent. With `offers` it replaces the whole array: offers missing from it are removed, `[]` clears the flow. An offer that stays keeps its row and its `state` even when `state` is not sent, so we never send `state`; new offers get `active`.
+- `DELETE /campaigns/{id}` moves the campaign to the archive (`state: "deleted"`); after that `GET /campaigns/{id}` returns a 404 nginx HTML page, not JSON.
+- The API key reads offers but cannot create them (`POST /offers` → 403 "no permission … Offers"); the tracker has one offer (18813). The tracker has only the domain `kylovoa.com`.
+- Verified by a write probe on `test_kondrashin_probe` (2026-11-20, archived). Writes to the live tracker are blocked for Claude by the auto-mode classifier: the user runs such scripts via `! <command>`.
 - Browser never calls Keitaro directly — only our `/api`.
 
 ## Environment
