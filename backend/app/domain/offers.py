@@ -20,8 +20,13 @@ class OfferSet:
     def __post_init__(self) -> None:
         if not self.shares:
             raise DomainError(NO_OFFERS)
-        if len(set(self.offer_ids)) != len(self.shares):
-            raise DomainError("Оффер уже есть в потоке")
+        seen: set[int] = set()
+        for s in self.shares:
+            if s.offer_id in seen:
+                raise DomainError(f"Оффер {s.offer_id} указан дважды")
+            if not 0 <= s.share <= 100:
+                raise DomainError(f"Доля оффера {s.offer_id} вне диапазона 0–100%: {s.share}")
+            seen.add(s.offer_id)
 
     @classmethod
     def evenly(cls, offer_ids: Sequence[int]) -> "OfferSet":

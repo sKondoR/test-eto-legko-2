@@ -27,9 +27,15 @@ def test_even_split_is_recognized() -> None:
     assert OfferSet.evenly([1, 2, 3]).is_even
 
 
-def test_rejects_duplicate_offers() -> None:
-    with pytest.raises(DomainError):
+def test_rejects_duplicate_offers_naming_the_offer() -> None:
+    with pytest.raises(DomainError, match="Оффер 1 указан дважды"):
         OfferSet((OfferShare(1, 50), OfferShare(1, 50)))
+
+
+@pytest.mark.parametrize("share", [-1, 101])
+def test_rejects_share_out_of_range(share: int) -> None:
+    with pytest.raises(DomainError):
+        OfferSet((OfferShare(1, share),))
 
 
 def test_diff_lists_added_and_removed_offers() -> None:

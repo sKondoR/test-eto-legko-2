@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from app.domain.campaign_name import CampaignName
-from app.domain.countries import CountryCode
+from app.domain.countries import NO_COUNTRIES, CountryCode
+from app.domain.errors import DomainError
 from app.domain.offers import OfferSet
 
 GOOGLE_URL = "https://google.com"
@@ -22,6 +23,12 @@ class GeoRedirectFlow:
 
     countries: tuple[CountryCode, ...]
     redirect_url: str = GOOGLE_URL
+
+    def __post_init__(self) -> None:
+        if not self.countries:
+            raise DomainError(NO_COUNTRIES)
+        if len(set(self.countries)) != len(self.countries):
+            raise DomainError("Страны в фильтре повторяются")
 
 
 @dataclass(frozen=True)

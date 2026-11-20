@@ -36,6 +36,9 @@ ISO_CODES = frozenset(
 )
 
 
+NO_COUNTRIES = "Выберите хотя бы одну страну"
+
+
 @dataclass(frozen=True)
 class CountryCode:
     value: str
@@ -47,7 +50,9 @@ class CountryCode:
 
 def parse_countries(values: Iterable[str]) -> tuple[CountryCode, ...]:
     """Нормализует коды (пробелы, регистр), убирает повторы, сохраняет порядок."""
-    codes = dict.fromkeys(v.strip().upper() for v in values if v.strip())
+    # upper() только для ASCII: иначе "ß".upper() == "SS" превратится в Южный Судан.
+    stripped = (v.strip() for v in values)
+    codes = dict.fromkeys(c.upper() if c.isascii() else c for c in stripped if c)
     if not codes:
-        raise DomainError("Выберите хотя бы одну страну")
+        raise DomainError(NO_COUNTRIES)
     return tuple(CountryCode(code) for code in codes)

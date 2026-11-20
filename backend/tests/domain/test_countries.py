@@ -34,3 +34,9 @@ def test_parse_requires_at_least_one_country() -> None:
 def test_parse_rejects_unknown_code() -> None:
     with pytest.raises(DomainError):
         parse_countries(["AU", "XX"])
+
+
+def test_parse_does_not_turn_non_ascii_into_codes() -> None:
+    # "ß".upper() == "SS" (Южный Судан) — такой ввод должен отклоняться.
+    with pytest.raises(DomainError):
+        parse_countries(["ß"])
