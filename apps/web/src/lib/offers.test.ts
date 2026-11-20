@@ -5,6 +5,7 @@ import {
   hasChanges,
   parseOfferId,
   previewShares,
+  sameFlow,
   segmentColors,
 } from './offers'
 
@@ -84,5 +85,22 @@ describe('segmentColors', () => {
     expect(colors.get(2)).toBe('var(--color-seg-2)')
     expect(colors.get(6)).toBe('var(--color-seg-1)')
     expect(colors.size).toBe(6)
+  })
+})
+
+describe('sameFlow', () => {
+  const flow = { offers: shares([1, 50], [2, 50]), disabled_offer_ids: [] as number[], geo: ['AU'] }
+
+  it('equal flows are the same', () => {
+    expect(sameFlow(flow, structuredClone(flow))).toBe(true)
+  })
+
+  it.each([
+    ['share', { offers: shares([1, 34], [2, 66]) }],
+    ['offer order', { offers: shares([2, 50], [1, 50]) }],
+    ['disabled offers', { disabled_offer_ids: [2] }],
+    ['geo', { geo: ['AU', 'RO'] }],
+  ])('a changed %s is a different flow', (_, change) => {
+    expect(sameFlow(flow, { ...flow, ...change })).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 // Логика редактора офферов без UI: превью долей, добавление, сравнение «было → станет».
-import type { OfferShare } from './api'
+import type { Editor, OfferShare } from './api'
 import { distributeShares } from './shares'
 
 export type RowStatus = 'kept' | 'added' | 'removed'
@@ -67,6 +67,16 @@ export function isEvenSplit(shares: OfferShare[]): boolean {
 }
 
 /** Сохранение что-то поменяет: другой состав или порядок офферов, либо доли не поровну. */
+/** Поток в Keitaro тот же: офферы с долями, выключенные офферы и страны потока 1. История
+ *  меняется только вместе с офферами, поэтому её не сравниваем. */
+export function sameFlow(
+  a: Pick<Editor, 'offers' | 'disabled_offer_ids' | 'geo'>,
+  b: Pick<Editor, 'offers' | 'disabled_offer_ids' | 'geo'>,
+): boolean {
+  const key = (e: typeof a) => JSON.stringify([e.offers, e.disabled_offer_ids, e.geo])
+  return key(a) === key(b)
+}
+
 export function hasChanges(current: OfferShare[], offerIds: number[]): boolean {
   const sameIds =
     current.length === offerIds.length && current.every((s, i) => s.offer_id === offerIds[i])

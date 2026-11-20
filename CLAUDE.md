@@ -19,7 +19,7 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 /                       pnpm workspace (pnpm 12.16.1 via corepack, Node >=24)
 ├─ apps/web/            Svelte 5 + Vite + TypeScript + Tailwind, SPA (no SvelteKit)
 │  ├─ src/lib/          api.ts (typed fetch, ApiError.detail → toast), offers.ts (editor logic, vitest), format.ts, toasts
-│  └─ src/components/   CampaignList, CreateCampaign, OfferEditor, SplitBar, pickers, Toasts
+│  └─ src/components/   CampaignList, CreateCampaign, OfferEditor, SplitBar, pickers, Toasts, Icon (SVG icons, no glyphs), Warning (amber notice)
 ├─ packages/api-types/  TS types generated from FastAPI OpenAPI (openapi-typescript)
 ├─ backend/             Python 3.13, uv, FastAPI + SQLAlchemy + Alembic, Postgres
 └─ docker-compose.yml   db (Postgres) + app (multi-stage: node:24-alpine builds web → FastAPI serves dist)
@@ -59,6 +59,7 @@ Campaign shape (matches the reference screenshots in `TASK.md`):
 - Flow 2: `default`, position 2, `schema: "landings"`, `action_type: "http"`, offers `[{offer_id, share}]`. The editor changes only this flow; flow 1 is read-only. The editor opens and saves only campaigns whose name starts with `test_kondrashin_` (`is_ours`); other candidates' campaigns in the tracker must never be touched.
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.
 - Editor saves on an explicit "Save"; before saving the service re-reads the flow and returns 409 if offers changed in Keitaro meanwhile.
+- Keitaro has no webhooks for admin edits: `OfferEditor` re-reads the campaign every 10 s while the tab is visible, on `visibilitychange` and by the «Обновить» button; a stale response (older request) is dropped. Background refresh never applies fresh data under unsaved edits (`data.offers` is Save's `expected`, so a 409 must still fire): it only sets `outdated`; the button and the 409 path apply fresh data keeping the edits. Background errors show under the button, not as toasts. Unsaved edits are mirrored to `sessionStorage` (`lib/draft.ts`, key `offer-draft:<id>`) and restored on the first load after F5 with a warning toast (restored edits land on fresh data, so no 409 covers them).
 
 DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (every creation attempt: `status` `created`/`failed`, `error`, `keitaro_id` NULL when Keitaro never created it; geo and offer IDs stored as arrays) and `offer_changes` (before → after as JSONB `[{offer_id, share}]`; added/removed are derived from them; shown as history in the editor). Both store the Keitaro campaign ID as `keitaro_id`; `offer_changes` has no foreign key to `campaigns`, because the editor also opens `test_kondrashin_*` campaigns created outside the app.
 
@@ -88,8 +89,8 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 
 ## Conventions
 
-- UI text is in Russian; errors shown as toasts; buttons disabled while a request is in flight.
-- UI design: cool palette (fog `#EEF1F4`, ink `#1B2430`, cobalt `#2747D9`, amber for warnings), Onest font via `@fontsource-variable/onest` (no CDN), the split bar is the one bold element. Theme is `@theme static` so `--color-seg-1..5` (set via `style`, not classes) are always emitted; primary button is the `btn-primary` utility. Selected campaign lives in the URL hash; `OfferEditor` is keyed by campaign id, so it remounts per campaign.
+- UI text is in Russian; errors shown as toasts (except background refresh errors in the editor: they show under the «Обновить» button, so polling does not spam toasts); buttons disabled while a request is in flight.
+- UI design: cool palette (fog `#EEF1F4`, ink `#1B2430`, cobalt `#2747D9`, amber for warnings), Onest font via `@fontsource-variable/onest` (no CDN), the split bar is the one bold element. Theme is `@theme static` so `--color-seg-1..5` (set via `style`, not classes) are always emitted; buttons use the `btn-primary` / `btn-secondary` utilities. Selected campaign lives in the URL hash; `OfferEditor` is keyed by campaign id, so it remounts per campaign.
 - Keep README current with setup/run steps (corepack enable, versions, `.env`, DB, migrations, both run modes) in the same change that alters them.
 
 ## Git workflow
