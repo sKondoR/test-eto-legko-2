@@ -72,3 +72,10 @@ DB tables: `campaigns` (campaigns created via the app; geo stored as array) and 
 
 - UI text is in Russian; errors shown as toasts; buttons disabled while a request is in flight.
 - Keep README current with setup/run steps (corepack enable, versions, `.env`, DB, migrations, both run modes) in the same change that alters them.
+
+## Git workflow
+
+- `main` changes only through pull requests: never commit or push directly to `main`.
+- One branch per task (`feat/…`, `fix/…`, `chore/…`, `docs/…`), cut from an up-to-date `main`; open the PR with `gh pr create`.
+- Before opening a PR: `pnpm lint` and `pnpm test` pass, README/CLAUDE.md updated if commands or setup changed.
+- Merge only after the user's explicit ok.
