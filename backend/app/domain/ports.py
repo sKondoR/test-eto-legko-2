@@ -63,6 +63,8 @@ class KeitaroPort(Protocol):
 
 
 class CampaignLog(Protocol):
+    """Журнал вторичен: реализации не бросают исключений на сбоях хранилища, а пишут их в лог."""
+
     async def campaign_created(self, keitaro_id: int, plan: CampaignPlan) -> None: ...
 
     async def campaign_failed(

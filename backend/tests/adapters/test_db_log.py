@@ -1,6 +1,9 @@
+import logging
+
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import select
+from sqlalchemy import make_url, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.adapters.db.log import SqlCampaignLog
@@ -103,3 +106,21 @@ async def test_reads_offer_history_newest_first(
 
     assert [e.change for e in history] == [second, first]
     assert history[0].changed_at >= history[1].changed_at
+
+
+async def test_database_failure_does_not_break_callers(
+    test_db_url: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    # Журнал вторичен: сбой БД пишется в лог, а работа с Keitaro продолжается.
+    # Несуществующая база на локальном сервере падает сразу, без таймаута соединения.
+    engine = create_async_engine(make_url(test_db_url).set(database="keitaro_missing"))
+    log = SqlCampaignLog(async_sessionmaker(engine))
+
+    with caplog.at_level(logging.ERROR):
+        await log.campaign_created(1, PLAN)
+        await log.campaign_failed(None, PLAN, "сбой")
+        await log.offers_changed(1, diff((), OfferSet.evenly([1]).shares))
+        assert await log.offer_history(1) == []
+    await engine.dispose()
+
+    assert len(caplog.records) == 4

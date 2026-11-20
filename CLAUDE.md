@@ -35,7 +35,8 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 
 Dependencies point one way: `api → services → domain ← adapters`.
 
-- `domain/` — pure logic, no IO; defines ports (`Protocol`, `domain/ports.py`): `KeitaroPort`, `CampaignLog`. Errors (`domain/errors.py`): `DomainError` (rule broken → 422), `KeitaroError` (adapter/API failure → 502), `NotFoundError(KeitaroError)` (campaign missing in Keitaro → 404; only `get_campaign` raises it, any other Keitaro 404 stays a 502), `ConflictError` (flow changed in Keitaro meanwhile → 409); all messages are Russian and shown to the user. `app/main.py` maps them to HTTP codes with body `{"detail": "..."}`.
+- `domain/` — pure logic, no IO; defines ports (`Protocol`, `domain/ports.py`): `KeitaroPort`, `CampaignLog`. Errors (`domain/errors.py`): `DomainError` (rule broken → 422), `KeitaroError` (adapter/API failure → 502), `NotFoundError(KeitaroError)` (campaign missing in Keitaro → 404; only `get_campaign` raises it, any other Keitaro 404 stays a 502), `ConflictError` (flow changed in Keitaro meanwhile → 409); all messages are Russian and shown to the user. `app/main.py` maps them to HTTP codes with body `{"detail": "..."}`; FastAPI validation errors (422) and unexpected errors (500, logged) use the same shape with a Russian string, so the UI can always toast `detail`.
+- The journal (`CampaignLog`) is secondary to Keitaro: `SqlCampaignLog` logs DB failures and never raises (`offer_history` returns `[]`), so a Postgres outage does not fail a create or save that already went through in Keitaro.
 - `services/` — use cases (create campaign, change offers); tested with in-memory fakes of the ports.
 - `adapters/keitaro/` — async `httpx2` client implementing `KeitaroPort`; transport is injected, tests pass `httpx2.MockTransport` (no respx: it supports only legacy `httpx`).
 - `adapters/db/` — SQLAlchemy models/repositories; tests use a separate Postgres test DB.

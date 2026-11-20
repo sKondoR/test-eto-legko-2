@@ -45,8 +45,7 @@ class EditorOut(BaseModel):
     geo: list[str]
     offers: list[OfferShare]
     disabled_offer_ids: list[int]
-    # False — доли ручные или часть офферов выключена в Keitaro: интерфейс предупреждает.
-    is_even: bool
+    is_even: bool  # см. EditorView.is_even
     history: list[HistoryEntryOut]
 
 

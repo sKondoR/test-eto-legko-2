@@ -1,7 +1,9 @@
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -18,6 +20,15 @@ from app.services.offer_editor import OfferEditor
 # HTTP-коды ошибок сервисов. Starlette ищет обработчик по MRO, поэтому NotFoundError
 # (подкласс KeitaroError) получает свой 404, а не 502.
 ERROR_STATUS = {DomainError: 422, NotFoundError: 404, ConflictError: 409, KeitaroError: 502}
+# Типы ошибок pydantic, которые возможны в наших формах, по-русски; остальные — как есть.
+VALIDATION_TEXT = {
+    "missing": "обязательное поле",
+    "int_parsing": "нужно целое число",
+    "int_type": "нужно целое число",
+    "string_type": "нужна строка",
+    "list_type": "нужен список",
+}
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -53,6 +64,23 @@ def _error_handler(status: int) -> Callable[[Request, Exception], Awaitable[JSON
 
 for error_class, status in ERROR_STATUS.items():
     app.add_exception_handler(error_class, _error_handler(status))
+
+
+# Все ошибки API — {"detail": "<строка по-русски>"}: интерфейс показывает detail в toast.
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
+    first = error.errors()[0]
+    field = ".".join(str(part) for part in first["loc"][1:]) or "запрос"
+    text = VALIDATION_TEXT.get(first["type"], first["msg"])
+    return JSONResponse({"detail": f"Неверный запрос: {field} — {text}"}, status_code=422)
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+    logger.exception("Необработанная ошибка: %s %s", request.method, request.url.path)
+    return JSONResponse(
+        {"detail": "Внутренняя ошибка сервера. Подробности — в логе бэкенда."}, status_code=500
+    )
 
 
 @app.get("/api/health")

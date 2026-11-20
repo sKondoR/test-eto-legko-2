@@ -21,7 +21,7 @@ from app.services.offer_editor import OfferEditor
 # Ошибки сервисов приходят как {"detail": "<текст для пользователя>"}; коды — в app.main.
 router = APIRouter(
     prefix="/api",
-    responses={code: {"model": ErrorOut} for code in (404, 409, 502)},
+    responses={code: {"model": ErrorOut} for code in (404, 409, 422, 500, 502)},
 )
 
 

@@ -137,3 +137,25 @@ def test_conflict_is_409(client: TestClient) -> None:
 
     assert response.status_code == 409
     assert "Обновите страницу" in response.json()["detail"]
+
+
+def test_validation_error_is_422_with_russian_string_detail(client: TestClient) -> None:
+    response = post_campaign(client, offer_id="abc")
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Неверный запрос: offer_id — нужно целое число"}
+
+
+def test_missing_field_is_named(client: TestClient) -> None:
+    response = client.post("/api/campaigns", json={"name_suffix": "c1", "countries": ["AU"]})
+
+    assert response.json() == {"detail": "Неверный запрос: offer_id — обязательное поле"}
+
+
+def test_unexpected_error_is_500_with_detail(client: TestClient, keitaro: FakeKeitaro) -> None:
+    keitaro.campaigns = None  # type: ignore[assignment]  # сломанный порт: TypeError внутри
+
+    response = TestClient(app, raise_server_exceptions=False).get("/api/campaigns")
+
+    assert response.status_code == 500
+    assert response.json()["detail"].startswith("Внутренняя ошибка сервера")
