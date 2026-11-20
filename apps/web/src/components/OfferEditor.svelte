@@ -1,7 +1,17 @@
 <script lang="ts">
+  // Создаётся заново на каждую кампанию ({#key} в App.svelte), поэтому campaignId не меняется.
   import { api, ApiError, type Editor, type OfferSummary } from '../lib/api'
-  import { addOffer, compareRows, hasChanges, parseOfferId, previewShares } from '../lib/offers'
+  import { pct, regionName } from '../lib/format'
+  import {
+    addOffer,
+    compareRows,
+    hasChanges,
+    parseOfferId,
+    previewShares,
+    segmentColors,
+  } from '../lib/offers'
   import { notify, notifyError } from '../lib/toasts.svelte'
+  import History from './History.svelte'
   import OfferPicker from './OfferPicker.svelte'
   import SplitBar from './SplitBar.svelte'
 
@@ -16,49 +26,48 @@
   let offerText = $state('')
   let saving = $state(false)
 
-  const offerNames = $derived(new Map(offers.map((o) => [o.id, o.name])))
+  const original = $derived(data?.offers.map((s) => s.offer_id) ?? [])
+  const preview = $derived(previewShares(offerIds))
   const rows = $derived(data ? compareRows(data.offers, offerIds) : [])
   const changed = $derived(data !== null && hasChanges(data.offers, offerIds))
-  // Цвет закреплён за оффером: один и тот же в обеих полосах и в таблице.
-  const colors = $derived.by(() => {
-    const order = [...new Set([...(data?.offers.map((s) => s.offer_id) ?? []), ...offerIds])]
-    return new Map(order.map((id, i) => [id, `var(--seg-${(i % 5) + 1})`]))
+  const colors = $derived(segmentColors([...original, ...offerIds]))
+  const offerNames = $derived(new Map(offers.map((o) => [o.id, o.name])))
+  const warning = $derived.by(() => {
+    const disabled = data?.disabled_offer_ids ?? []
+    if (disabled.length === 1)
+      return `Оффер ${disabled[0]} выключен в Keitaro: доля у него есть, а трафик он не получает. Включить оффер можно только в админке Keitaro.`
+    if (disabled.length > 1)
+      return `Офферы ${disabled.join(', ')} выключены в Keitaro: доля у них есть, а трафик они не получают. Включить оффер можно только в админке Keitaro.`
+    if (data && !data.is_even)
+      return 'Доли в Keitaro неравные — их правили вручную. При сохранении они станут равными.'
+    return null
   })
-  const names = new Intl.DisplayNames(['ru'], { type: 'region' })
-  const dateFormat = new Intl.DateTimeFormat('ru', { dateStyle: 'medium', timeStyle: 'short' })
 
   /** keepEdits — после 409 оставить правку пользователя поверх свежих данных. */
   async function load(keepEdits = false): Promise<void> {
-    const id = campaignId
     try {
-      const fresh = await api.editor(id)
-      if (id !== campaignId) return // пока грузилось, выбрали другую кампанию
-      data = fresh
-      if (!keepEdits) offerIds = fresh.offers.map((s) => s.offer_id)
+      data = await api.editor(campaignId)
+      if (!keepEdits) offerIds = original
     } catch (error) {
       notifyError(error)
     }
   }
 
-  $effect(() => {
-    void campaignId
-    data = null
-    offerText = ''
-    load()
-  })
-
-  function add(): void {
+  function add(event: SubmitEvent): void {
+    event.preventDefault()
     const id = parseOfferId(offerText)
     if (id === null) {
       notify('error', 'Введите ID оффера: целое число, например 18813')
-      return
-    }
-    try {
+    } else if (offerIds.includes(id)) {
+      notify('error', `Оффер ${id} уже в потоке`)
+    } else {
       offerIds = addOffer(offerIds, id)
       offerText = ''
-    } catch (error) {
-      notifyError(error)
     }
+  }
+
+  function toggle(id: number, removed: boolean): void {
+    offerIds = removed ? addOffer(offerIds, id) : offerIds.filter((i) => i !== id)
   }
 
   async function save(): Promise<void> {
@@ -67,7 +76,7 @@
     try {
       await api.saveOffers(campaignId, { expected: data.offers, offer_ids: offerIds })
       notify('success', 'Офферы сохранены')
-      await load()
+      void load() // свежие доли и история; кнопки не ждут перечитывания
     } catch (error) {
       notifyError(error)
       if (error instanceof ApiError && error.status === 409) await load(true)
@@ -76,9 +85,7 @@
     }
   }
 
-  function shareLine(shares: { share: number }[]): string {
-    return shares.length ? shares.map((s) => s.share).join(' / ') : 'пусто'
-  }
+  load()
 </script>
 
 {#if data === null}
@@ -95,7 +102,7 @@
         Поток 1 отправляет трафик из
         {#each data.geo as code, i (code)}{i ? ', ' : ''}<span
             class="text-ink"
-            title={names.of(code)}
+            title={regionName(code)}
           >
             {code}
           </span>{/each}
@@ -110,25 +117,13 @@
         <SplitBar shares={data.offers} {colors} label="Сейчас в Keitaro" size="sm" />
       {/if}
       <SplitBar
-        shares={previewShares(offerIds)}
+        shares={preview}
         {colors}
         label={changed ? 'После сохранения' : 'Сейчас в Keitaro'}
       />
 
-      {#if data.disabled_offer_ids.length > 0}
-        <p class="rounded-md border-l-4 border-amber bg-white px-4 py-3 text-sm">
-          {#if data.disabled_offer_ids.length === 1}
-            Оффер {data.disabled_offer_ids[0]} выключен в Keitaro: доля у него есть, а трафик он не получает.
-          {:else}
-            Офферы {data.disabled_offer_ids.join(', ')} выключены в Keitaro: доля у них есть, а трафик
-            они не получают.
-          {/if}
-          Включить оффер можно только в админке Keitaro.
-        </p>
-      {:else if !data.is_even}
-        <p class="rounded-md border-l-4 border-amber bg-white px-4 py-3 text-sm">
-          Доли в Keitaro неравные — их правили вручную. При сохранении они станут равными.
-        </p>
+      {#if warning}
+        <p class="rounded-md border-l-4 border-amber bg-white px-4 py-3 text-sm">{warning}</p>
       {/if}
 
       <table class="w-full border-collapse text-left">
@@ -143,19 +138,15 @@
         <tbody>
           {#each rows as row (row.offer_id)}
             {@const name = offerNames.get(row.offer_id) ?? `Оффер ${row.offer_id}`}
-            <tr class={['border-b border-line', row.status === 'removed' && 'text-muted']}>
+            {@const removed = row.status === 'removed'}
+            <tr class={['border-b border-line', removed && 'text-muted']}>
               <td class="max-w-0 py-2.5">
                 <span class="flex items-center gap-2.5">
                   <span
-                    class="size-3 shrink-0 rounded-sm"
-                    style:background-color={row.status === 'removed'
-                      ? 'var(--color-line)'
-                      : colors.get(row.offer_id)}
+                    class={['size-3 shrink-0 rounded-sm', removed && 'bg-line']}
+                    style:background-color={removed ? undefined : colors.get(row.offer_id)}
                   ></span>
-                  <span
-                    class={['min-w-0 truncate', row.status === 'removed' && 'line-through']}
-                    title={name}
-                  >
+                  <span class={['min-w-0 truncate', removed && 'line-through']} title={name}>
                     {name}
                   </span>
                   {#if row.status === 'added'}<span class="text-sm text-cobalt">новый</span>{/if}
@@ -165,64 +156,43 @@
                 </span>
               </td>
               <td class="py-2.5 pl-3 text-right whitespace-nowrap tabular-nums">
-                {row.before ?? '—'}{row.before === null ? '' : '%'}
+                {pct(row.before)}
               </td>
               <td class="py-2.5 pl-3 text-right font-semibold whitespace-nowrap tabular-nums">
-                {row.after ?? '—'}{row.after === null ? '' : '%'}
+                {pct(row.after)}
               </td>
               <td class="py-2.5 pl-3 text-right">
-                {#if row.status === 'removed'}
-                  <button
-                    type="button"
-                    class="text-sm text-cobalt hover:underline"
-                    onclick={() => (offerIds = addOffer(offerIds, row.offer_id))}
-                  >
-                    Вернуть
-                  </button>
-                {:else}
-                  <button
-                    type="button"
-                    class="text-sm text-danger hover:underline"
-                    onclick={() => (offerIds = offerIds.filter((id) => id !== row.offer_id))}
-                  >
-                    Убрать
-                  </button>
-                {/if}
+                <button
+                  type="button"
+                  class={['text-sm hover:underline', removed ? 'text-cobalt' : 'text-danger']}
+                  onclick={() => toggle(row.offer_id, removed)}
+                >
+                  {removed ? 'Вернуть' : 'Убрать'}
+                </button>
               </td>
             </tr>
           {/each}
         </tbody>
       </table>
 
-      <div class="flex gap-2">
+      <form class="flex gap-2" onsubmit={add}>
         <div class="flex-1">
           <label for="add-offer" class="sr-only">Добавить оффер</label>
-          <OfferPicker
-            id="add-offer"
-            {offers}
-            bind:value={offerText}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                add()
-              }
-            }}
-          />
+          <OfferPicker id="add-offer" {offers} bind:value={offerText} />
         </div>
         <button
-          type="button"
+          type="submit"
           class="rounded-md border border-line bg-white px-4 py-2 font-medium hover:bg-fog disabled:opacity-50"
           disabled={offerText.trim() === ''}
-          onclick={add}
         >
           Добавить
         </button>
-      </div>
+      </form>
 
       <div class="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          class="rounded-md bg-cobalt px-5 py-2.5 font-medium text-white hover:bg-cobalt-dark disabled:cursor-not-allowed disabled:opacity-50"
+          class="btn-primary"
           disabled={!changed || offerIds.length === 0 || saving}
           onclick={save}
         >
@@ -233,7 +203,7 @@
             type="button"
             class="rounded-md px-3 py-2.5 text-muted hover:text-ink"
             disabled={saving}
-            onclick={() => data && (offerIds = data.offers.map((s) => s.offer_id))}
+            onclick={() => (offerIds = original)}
           >
             Отменить правку
           </button>
@@ -244,34 +214,6 @@
       </div>
     </section>
 
-    <section aria-labelledby="history-title">
-      <h2 id="history-title" class="mb-3 text-lg font-semibold">История правок</h2>
-      {#if data.history.length === 0}
-        <p class="text-sm text-muted">Через приложение офферы этой кампании ещё не меняли.</p>
-      {:else}
-        <ol class="flex flex-col">
-          {#each data.history as entry (entry.changed_at)}
-            <li
-              class="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line py-2.5 text-sm"
-            >
-              <time
-                class="w-44 shrink-0 whitespace-nowrap text-muted tabular-nums"
-                datetime={entry.changed_at}
-              >
-                {dateFormat.format(new Date(entry.changed_at))}
-              </time>
-              <span class="tabular-nums">
-                {shareLine(entry.before)} <span class="text-muted">→</span>
-                <span class="font-medium">{shareLine(entry.after)}</span>
-              </span>
-              <span class="flex gap-2">
-                {#each entry.added as id (id)}<span class="text-cobalt">+{id}</span>{/each}
-                {#each entry.removed as id (id)}<span class="text-danger">−{id}</span>{/each}
-              </span>
-            </li>
-          {/each}
-        </ol>
-      {/if}
-    </section>
+    <History entries={data.history} />
   </article>
 {/if}

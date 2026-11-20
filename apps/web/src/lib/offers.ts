@@ -17,9 +17,17 @@ export function previewShares(offerIds: number[]): OfferShare[] {
   return offerIds.map((offer_id, i) => ({ offer_id, share: split[i] }))
 }
 
+/** Оффер, который уже в потоке, не добавляется второй раз. */
 export function addOffer(offerIds: number[], id: number): number[] {
-  if (offerIds.includes(id)) throw new Error(`Оффер ${id} уже в потоке`)
-  return [...offerIds, id]
+  return offerIds.includes(id) ? offerIds : [...offerIds, id]
+}
+
+const PALETTE_SIZE = 5
+
+/** Цвет закреплён за оффером в порядке первого появления: один и тот же в полосах и таблице. */
+export function segmentColors(offerIds: number[]): Map<number, string> {
+  const order = [...new Set(offerIds)]
+  return new Map(order.map((id, i) => [id, `var(--color-seg-${(i % PALETTE_SIZE) + 1})`]))
 }
 
 /** ID из поля ввода: число или строка списка офферов вида «18813 Flexacil…». */
@@ -48,7 +56,8 @@ export function compareRows(current: OfferShare[], offerIds: number[]): Row[] {
   return [...kept, ...removed]
 }
 
-/** Сохранение что-то поменяет в Keitaro: другой состав, порядок или неравные доли. */
+/** Сохранение что-то поменяет в Keitaro: другой состав, порядок или неравные доли.
+ * Повторяет diff бэкенда (сравнение долей до и после) только ради активности кнопки. */
 export function hasChanges(current: OfferShare[], offerIds: number[]): boolean {
   const next = previewShares(offerIds)
   return (

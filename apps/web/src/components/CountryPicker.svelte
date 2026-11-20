@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { regionName } from '../lib/format'
+
   let {
     id,
     countries,
     selected = $bindable(),
   }: { id: string; countries: string[]; selected: string[] } = $props()
 
-  const names = new Intl.DisplayNames(['ru'], { type: 'region' })
   let text = $state('')
   let hint = $state('')
 
@@ -37,11 +38,11 @@
   {#each selected as code (code)}
     <span class="flex items-center gap-1 rounded bg-fog py-1 pr-1 pl-2 text-sm">
       <span class="font-semibold">{code}</span>
-      <span class="text-muted">{names.of(code)}</span>
+      <span class="text-muted">{regionName(code)}</span>
       <button
         type="button"
         class="rounded px-1 text-muted hover:text-ink"
-        aria-label={`Убрать ${names.of(code)}`}
+        aria-label={`Убрать ${regionName(code)}`}
         onclick={() => (selected = selected.filter((c) => c !== code))}
       >
         ✕
@@ -60,7 +61,7 @@
   />
   <datalist id={`${id}-list`}>
     {#each countries as code (code)}
-      <option value={code}>{names.of(code)}</option>
+      <option value={code}>{regionName(code)}</option>
     {/each}
   </datalist>
 </div>

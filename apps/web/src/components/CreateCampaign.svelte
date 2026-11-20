@@ -77,11 +77,7 @@
   </div>
 
   <div>
-    <button
-      type="submit"
-      class="rounded-md bg-cobalt px-5 py-2.5 font-medium text-white hover:bg-cobalt-dark disabled:cursor-not-allowed disabled:opacity-50"
-      disabled={!ready || busy}
-    >
+    <button type="submit" class="btn-primary" disabled={!ready || busy}>
       {busy ? 'Создаю кампанию…' : 'Создать кампанию'}
     </button>
   </div>

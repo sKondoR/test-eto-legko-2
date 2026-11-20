@@ -6,12 +6,10 @@
     id,
     offers,
     value = $bindable(),
-    onkeydown,
   }: {
     id: string
     offers: OfferSummary[]
     value: string
-    onkeydown?: (event: KeyboardEvent) => void
   } = $props()
 </script>
 
@@ -23,7 +21,6 @@
   placeholder="ID оффера или начало названия"
   autocomplete="off"
   bind:value
-  {onkeydown}
 />
 <datalist id={`${id}-list`}>
   {#each offers as offer (offer.id)}

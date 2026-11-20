@@ -9,18 +9,18 @@
   let config = $state<Config | null>(null)
   let offers = $state<OfferSummary[]>([])
   let campaigns = $state<CampaignSummary[] | null>(null)
-  // Выбор живёт в адресе (#/campaigns/123): переживает перезагрузку, работает «назад».
-  function fromHash(): number | 'new' {
-    const match = /^#\/campaigns\/(\d+)$/.exec(location.hash)
-    return match ? Number(match[1]) : 'new'
-  }
+  let failed = $state(false)
 
-  let selected = $state<number | 'new'>(fromHash())
+  // Выбор живёт в адресе (#/campaigns/123): переживает перезагрузку, работает «назад».
+  let hash = $state(location.hash)
+  const selected = $derived.by((): number | 'new' => {
+    const match = /^#\/campaigns\/(\d+)$/.exec(hash)
+    return match ? Number(match[1]) : 'new'
+  })
 
   function select(target: number | 'new'): void {
     location.hash = target === 'new' ? '#/new' : `#/campaigns/${target}`
   }
-  let failed = $state(false)
 
   async function loadCampaigns(): Promise<void> {
     try {
@@ -33,19 +33,19 @@
 
   async function start(): Promise<void> {
     failed = false
+    // Список кампаний — самый долгий запрос (листает весь трекер): не ждём его для старта.
+    void loadCampaigns()
     try {
       ;[config, offers] = await Promise.all([api.config(), api.offers()])
     } catch (error) {
       notifyError(error)
       failed = true
-      return
     }
-    await loadCampaigns()
   }
 
-  async function created(id: number): Promise<void> {
-    await loadCampaigns()
+  function created(id: number): void {
     select(id)
+    void loadCampaigns()
   }
 
   start()
@@ -63,26 +63,22 @@
       {#if selected === 'new'}
         <CreateCampaign {config} {offers} oncreated={created} />
       {:else}
-        <OfferEditor campaignId={selected} prefix={config.name_prefix} {offers} />
+        {#key selected}
+          <OfferEditor campaignId={selected} prefix={config.name_prefix} {offers} />
+        {/key}
       {/if}
     </main>
   {:else if failed}
     <main class="md:col-span-2">
       <h1 class="text-2xl font-semibold">Не удалось загрузить данные</h1>
       <p class="mt-1 text-muted">Проверьте, что бэкенд запущен и Keitaro доступен.</p>
-      <button
-        type="button"
-        class="mt-4 rounded-md bg-cobalt px-5 py-2.5 font-medium text-white hover:bg-cobalt-dark"
-        onclick={start}
-      >
-        Повторить
-      </button>
+      <button type="button" class="btn-primary mt-4" onclick={start}>Повторить</button>
     </main>
   {:else}
     <p class="text-muted md:col-span-2">Загружаю…</p>
   {/if}
 </div>
 
-<svelte:window onhashchange={() => (selected = fromHash())} />
+<svelte:window onhashchange={() => (hash = location.hash)} />
 
 <Toasts />

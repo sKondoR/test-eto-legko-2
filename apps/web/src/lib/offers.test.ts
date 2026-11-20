@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { addOffer, compareRows, hasChanges, parseOfferId, previewShares } from './offers'
+import {
+  addOffer,
+  compareRows,
+  hasChanges,
+  parseOfferId,
+  previewShares,
+  segmentColors,
+} from './offers'
 
 const shares = (...pairs: [number, number][]) =>
   pairs.map(([offer_id, share]) => ({ offer_id, share }))
@@ -19,8 +26,8 @@ describe('addOffer', () => {
     expect(addOffer([1, 2], 3)).toEqual([1, 2, 3])
   })
 
-  it('не даёт добавить оффер дважды', () => {
-    expect(() => addOffer([1, 2], 2)).toThrow('Оффер 2 уже в потоке')
+  it('повторный оффер не добавляет', () => {
+    expect(addOffer([1, 2], 2)).toEqual([1, 2])
   })
 })
 
@@ -59,5 +66,15 @@ describe('hasChanges', () => {
 
   it('другой порядок — это изменение: остаток уходит другому офферу', () => {
     expect(hasChanges(shares([1, 33], [2, 33], [3, 34]), [3, 2, 1])).toBe(true)
+  })
+})
+
+describe('segmentColors', () => {
+  it('цвет закреплён за оффером в порядке первого появления, палитра по кругу', () => {
+    const colors = segmentColors([1, 2, 3, 4, 5, 6, 2])
+    expect(colors.get(1)).toBe('var(--color-seg-1)')
+    expect(colors.get(2)).toBe('var(--color-seg-2)')
+    expect(colors.get(6)).toBe('var(--color-seg-1)')
+    expect(colors.size).toBe(6)
   })
 })

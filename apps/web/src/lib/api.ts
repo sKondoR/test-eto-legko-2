@@ -7,7 +7,6 @@ export type OfferSummary = Schemas['OfferSummary']
 export type CampaignSummary = Schemas['CampaignSummary']
 export type OfferShare = Schemas['OfferShare']
 export type Editor = Schemas['EditorOut']
-export type HistoryEntry = Schemas['HistoryEntryOut']
 
 /** Ошибка API: detail — готовый текст для пользователя, status — HTTP-код. */
 export class ApiError extends Error {
