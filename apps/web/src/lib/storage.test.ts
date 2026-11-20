@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readDraft, writeDraft } from './draft'
+import { readDraft, readSeen, writeDraft, writeSeen } from './storage'
 
 function fakeStorage(): Storage {
   const items = new Map<string, string>()
@@ -15,7 +15,7 @@ function fakeStorage(): Storage {
   }
 }
 
-describe('draft', () => {
+describe('storage', () => {
   beforeEach(() => vi.stubGlobal('sessionStorage', fakeStorage()))
   afterEach(() => vi.unstubAllGlobals())
 
@@ -48,6 +48,13 @@ describe('draft', () => {
       expect(readDraft(1)).toBeNull()
     },
   )
+
+  it('keeps seen offers apart from the draft', () => {
+    writeDraft(1, [1])
+    writeSeen(1, [1, 2])
+
+    expect([readDraft(1), readSeen(1)]).toEqual([[1], [1, 2]])
+  })
 
   it('works without storage', () => {
     vi.stubGlobal('sessionStorage', undefined)
