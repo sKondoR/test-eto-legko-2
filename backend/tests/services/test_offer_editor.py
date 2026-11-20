@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from app.domain.errors import ConflictError, DomainError
@@ -112,3 +114,14 @@ async def test_save_never_touches_foreign_campaign() -> None:
 
     assert "update_offer_flow" not in keitaro.calls
     assert log.changes == []
+
+
+async def test_open_flags_disabled_offers_as_not_even() -> None:
+    keitaro = keitaro_with(shares((1, 50), (2, 50)))
+    keitaro.campaigns[CAMPAIGN_ID] = replace(
+        keitaro.campaigns[CAMPAIGN_ID], disabled_offer_ids=(2,)
+    )
+
+    view = await OfferEditor(keitaro, FakeLog()).open(CAMPAIGN_ID)
+
+    assert not view.is_even

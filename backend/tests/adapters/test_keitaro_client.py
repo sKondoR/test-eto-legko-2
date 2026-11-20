@@ -166,20 +166,23 @@ async def test_archives_campaign_with_delete(client: KeitaroClient, fake: Keitar
     assert [(r.method, r.url.path) for r in fake.requests] == [("DELETE", API + "/campaigns/7")]
 
 
-async def test_lists_campaigns_across_pages(client: KeitaroClient, fake: KeitaroStub) -> None:
+@pytest.mark.parametrize("server_cap", [PAGE_SIZE, 100])
+async def test_lists_campaigns_across_pages(
+    client: KeitaroClient, fake: KeitaroStub, server_cap: int
+) -> None:
     total = PAGE_SIZE + 2
 
     def page(request: httpx2.Request) -> list[dict[str, Any]]:
-        offset, limit = int(request.url.params["offset"]), int(request.url.params["limit"])
+        offset = int(request.url.params["offset"])
+        limit = min(int(request.url.params["limit"]), server_cap)
         return [{"id": i, "name": f"c{i}"} for i in range(offset, min(offset + limit, total))]
 
     fake.routes[("GET", "/campaigns")] = page
 
     campaigns = await client.list_campaigns()
 
-    assert len(campaigns) == total
+    assert [c.id for c in campaigns] == list(range(total))
     assert campaigns[-1] == CampaignSummary(total - 1, f"c{total - 1}")
-    assert len(fake.requests) == 2
 
 
 async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: KeitaroStub) -> None:
@@ -194,6 +197,7 @@ async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: Ke
         geo_countries=("AU", "RO"),
         offer_flow_id=1333322,
         offers=shares((18813, 70), (3749, 30)),
+        disabled_offer_ids=(3749,),
     )
 
 
@@ -251,3 +255,18 @@ async def test_network_failure_becomes_keitaro_error(
 
     with pytest.raises(KeitaroError, match="недоступен"):
         await client.archive_campaign(7)
+
+
+async def test_non_json_success_becomes_keitaro_error(
+    client: KeitaroClient, fake: KeitaroStub
+) -> None:
+    fake.routes[("DELETE", "/campaigns/7")] = httpx2.Response(200, html="<html>challenge</html>")
+
+    with pytest.raises(KeitaroError, match="не JSON"):
+        await client.archive_campaign(7)
+
+
+async def test_empty_success_body_is_fine(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("DELETE", "/campaigns/7")] = httpx2.Response(204)
+
+    await client.archive_campaign(7)

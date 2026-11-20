@@ -115,16 +115,13 @@ class KeitaroClient:
 
     async def list_campaigns(self) -> list[CampaignSummary]:
         # Фильтра по имени в API нет: читаем все страницы.
+        # Конец — пустая страница: сервер может урезать limit, короткая страница не последняя.
         campaigns: list[CampaignSummary] = []
-        offset = 0
-        while True:
-            page = await self._request(
-                "GET", "/campaigns", params={"offset": offset, "limit": PAGE_SIZE}
-            )
+        while page := await self._request(
+            "GET", "/campaigns", params={"offset": len(campaigns), "limit": PAGE_SIZE}
+        ):
             campaigns += [CampaignSummary(c["id"], c["name"]) for c in page]
-            if len(page) < PAGE_SIZE:
-                return campaigns
-            offset += PAGE_SIZE
+        return campaigns
 
     async def get_campaign(self, campaign_id: int) -> CampaignState:
         campaign, streams = await asyncio.gather(
@@ -132,15 +129,14 @@ class KeitaroClient:
             self._request("GET", f"/campaigns/{campaign_id}/streams"),
         )
         offer_flow = next((s for s in streams if s["type"] == OFFER_FLOW_TYPE), None)
+        offers = offer_flow["offers"] if offer_flow else []
         return CampaignState(
             id=campaign["id"],
             name=campaign["name"],
             geo_countries=_geo_countries(streams),
             offer_flow_id=offer_flow["id"] if offer_flow else None,
-            offers=tuple(
-                OfferShare(o["offer_id"], o["share"])
-                for o in (offer_flow["offers"] if offer_flow else [])
-            ),
+            offers=tuple(OfferShare(o["offer_id"], o["share"]) for o in offers),
+            disabled_offer_ids=tuple(o["offer_id"] for o in offers if o["state"] != "active"),
         )
 
     async def update_offer_flow(self, flow_id: int, offers: OfferSet) -> None:
@@ -157,7 +153,14 @@ class KeitaroClient:
                 f"Keitaro вернул ошибку {response.status_code} на {method} {path}: "
                 f"{_error_detail(response)}"
             )
-        return response.json()
+        if not response.content:
+            return None
+        try:
+            return response.json()
+        except ValueError as error:
+            raise KeitaroError(
+                f"Keitaro ответил не JSON на {method} {path}: {response.text.strip()[:200]}"
+            ) from error
 
 
 def _id_by_name(items: list[dict[str, Any]], name: str, what: str) -> int:

@@ -10,7 +10,8 @@ from app.domain.ports import CampaignLog, CampaignState, KeitaroPort
 @dataclass(frozen=True)
 class EditorView:
     campaign: CampaignState
-    is_even: bool  # False — сохранение перезапишет ручные доли, интерфейс предупреждает
+    # False — доли ручные или часть офферов выключена в Keitaro: интерфейс предупреждает.
+    is_even: bool
 
 
 class OfferEditor:
@@ -20,7 +21,8 @@ class OfferEditor:
 
     async def open(self, campaign_id: int) -> EditorView:
         campaign = await self._get_ours(campaign_id)
-        return EditorView(campaign, is_even_split(campaign.offers))
+        is_even = is_even_split(campaign.offers) and not campaign.disabled_offer_ids
+        return EditorView(campaign, is_even)
 
     async def save(
         self, campaign_id: int, expected: Sequence[OfferShare], offer_ids: Sequence[int]
