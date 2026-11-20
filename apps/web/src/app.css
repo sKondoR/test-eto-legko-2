@@ -1,1 +1,44 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/onest';
+
+@theme {
+  --font-sans: 'Onest Variable', system-ui, sans-serif;
+
+  --color-fog: #eef1f4;
+  --color-ink: #1b2430;
+  --color-muted: #5b6676;
+  --color-line: #d5dbe3;
+  --color-cobalt: #2747d9;
+  --color-cobalt-dark: #1d36a8;
+  --color-amber: #c98a12;
+  --color-danger: #c2362f;
+}
+
+/* Сегменты полосы распределения: цвет оффера одинаков в полосе и в строке таблицы.
+   Не в @theme: их подставляет style, а Tailwind выводит только переменные из классов. */
+:root {
+  --seg-1: #2747d9;
+  --seg-2: #0e8c83;
+  --seg-3: #c98a12;
+  --seg-4: #8a3fa8;
+  --seg-5: #4a5565;
+}
+
+@layer base {
+  body {
+    @apply bg-fog font-sans text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-cobalt;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}

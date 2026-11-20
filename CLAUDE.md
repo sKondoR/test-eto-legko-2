@@ -18,6 +18,8 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 ```
 /                       pnpm workspace (pnpm 12.16.1 via corepack, Node >=24)
 ├─ apps/web/            Svelte 5 + Vite + TypeScript + Tailwind, SPA (no SvelteKit)
+│  ├─ src/lib/          api.ts (typed fetch, ApiError.detail → toast), offers.ts (editor logic, vitest), toasts
+│  └─ src/components/   CampaignList, CreateCampaign, OfferEditor, SplitBar, pickers, Toasts
 ├─ packages/api-types/  TS types generated from FastAPI OpenAPI (openapi-typescript)
 ├─ backend/             Python 3.13, uv, FastAPI + SQLAlchemy + Alembic, Postgres
 └─ docker-compose.yml   db (Postgres) + app (multi-stage: node:24-alpine builds web → FastAPI serves dist)
@@ -87,6 +89,7 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 ## Conventions
 
 - UI text is in Russian; errors shown as toasts; buttons disabled while a request is in flight.
+- UI design: cool palette (fog `#EEF1F4`, ink `#1B2430`, cobalt `#2747D9`, amber for warnings), Onest font via `@fontsource-variable/onest` (no CDN), the split bar is the one bold element. Segment colors are `--seg-1..5` in `:root`, not `@theme`: Tailwind 4 drops theme variables not used in classes. Selected campaign lives in the URL hash.
 - Keep README current with setup/run steps (corepack enable, versions, `.env`, DB, migrations, both run modes) in the same change that alters them.
 
 ## Git workflow
