@@ -15,6 +15,9 @@ from app.domain.ports import CampaignState, CampaignSummary
 # Cloudflare перед трекером отвечает 403 (error 1010) на User-Agent библиотек вроде Python-urllib.
 USER_AGENT = "keitaro-campaigns/0.1"
 PAGE_SIZE = 500
+# Типы потоков Keitaro: по ним создаём потоки и по ним же узнаём их при чтении.
+GEO_FLOW_TYPE = "regular"
+OFFER_FLOW_TYPE = "default"
 
 
 class KeitaroClient:
@@ -76,7 +79,7 @@ class KeitaroClient:
             "/streams",
             json={
                 "campaign_id": campaign_id,
-                "type": "regular",
+                "type": GEO_FLOW_TYPE,
                 "name": "Geo redirect",
                 "position": 1,
                 "schema": "redirect",
@@ -98,7 +101,7 @@ class KeitaroClient:
             "/streams",
             json={
                 "campaign_id": campaign_id,
-                "type": "default",
+                "type": OFFER_FLOW_TYPE,
                 "name": "Offers",
                 "position": 2,
                 "schema": "landings",
@@ -128,7 +131,7 @@ class KeitaroClient:
             self._request("GET", f"/campaigns/{campaign_id}"),
             self._request("GET", f"/campaigns/{campaign_id}/streams"),
         )
-        offer_flow = next((s for s in streams if s["type"] == "default"), None)
+        offer_flow = next((s for s in streams if s["type"] == OFFER_FLOW_TYPE), None)
         return CampaignState(
             id=campaign["id"],
             name=campaign["name"],
@@ -170,7 +173,7 @@ def _offers_payload(offers: OfferSet) -> list[dict[str, int]]:
 
 def _geo_countries(streams: list[dict[str, Any]]) -> tuple[str, ...]:
     for stream in streams:
-        if stream["type"] != "regular":
+        if stream["type"] != GEO_FLOW_TYPE:
             continue
         for f in stream["filters"]:
             if f["name"] == "country" and f["mode"] == "accept":

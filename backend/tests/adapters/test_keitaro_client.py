@@ -14,16 +14,17 @@ from app.domain.plan import GeoRedirectFlow, OfferFlow, Placement
 from app.domain.ports import CampaignState, CampaignSummary
 from tests.helpers import shares
 
+API = "/admin_api/v1"
 PLACEMENT = Placement(domain_id=1813, group_id=10332, traffic_source_id=836)
 
 # Сокращённые ответы живого Keitaro (проба 2026-11-20).
 DIRECTORIES = {
-    ("GET", "/admin_api/v1/domains"): [{"id": 1813, "name": "kylovoa.com"}],
-    ("GET", "/admin_api/v1/groups"): [
+    ("GET", "/domains"): [{"id": 1813, "name": "kylovoa.com"}],
+    ("GET", "/groups"): [
         {"id": 9799, "name": "VZ adrobot test", "type": "campaigns"},
         {"id": 10332, "name": "FORTESTS", "type": "campaigns"},
     ],
-    ("GET", "/admin_api/v1/traffic_sources"): [{"id": 836, "name": "FORTESTS"}],
+    ("GET", "/traffic_sources"): [{"id": 836, "name": "FORTESTS"}],
 }
 GEO_STREAM = {
     "id": 1333321,
@@ -44,7 +45,7 @@ OFFER_STREAM = {
 }
 
 
-class FakeKeitaro:
+class KeitaroStub:
     """Обработчик для MockTransport: отвечает по таблице маршрутов и записывает запросы."""
 
     def __init__(self, routes: dict[tuple[str, str], Any]) -> None:
@@ -53,7 +54,7 @@ class FakeKeitaro:
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
-        answer = self.routes[(request.method, request.url.path)]
+        answer = self.routes[(request.method, request.url.path.removeprefix(API))]
         if callable(answer):
             answer = answer(request)
         if isinstance(answer, httpx2.Response):
@@ -64,30 +65,34 @@ class FakeKeitaro:
         return [
             json.loads(r.content)
             for r in self.requests
-            if r.method == method and r.url.path == "/admin_api/v1" + path
+            if r.method == method and r.url.path == API + path
         ]
 
 
-@pytest.fixture
-def fake() -> FakeKeitaro:
-    return FakeKeitaro(dict(DIRECTORIES))
-
-
-@pytest.fixture
-async def client(fake: FakeKeitaro) -> AsyncIterator[KeitaroClient]:
-    client = KeitaroClient(
+def make_client(stub: KeitaroStub, domain: str = "kylovoa.com") -> KeitaroClient:
+    return KeitaroClient(
         "https://tlgk.host/",
         "secret-key",
-        domain="kylovoa.com",
+        domain=domain,
         group="FORTESTS",
         source="FORTESTS",
-        transport=httpx2.MockTransport(fake),
+        transport=httpx2.MockTransport(stub),
     )
+
+
+@pytest.fixture
+def fake() -> KeitaroStub:
+    return KeitaroStub(dict(DIRECTORIES))
+
+
+@pytest.fixture
+async def client(fake: KeitaroStub) -> AsyncIterator[KeitaroClient]:
+    client = make_client(fake)
     yield client
     await client.aclose()
 
 
-async def test_resolves_placement_by_name_once(client: KeitaroClient, fake: FakeKeitaro) -> None:
+async def test_resolves_placement_by_name_once(client: KeitaroClient, fake: KeitaroStub) -> None:
     assert await client.resolve_placement() == PLACEMENT
     assert await client.resolve_placement() == PLACEMENT
 
@@ -96,25 +101,20 @@ async def test_resolves_placement_by_name_once(client: KeitaroClient, fake: Fake
     assert groups.url.params["type"] == "campaigns"
     for r in fake.requests:
         assert r.url.host == "tlgk.host"
+        assert r.url.path.startswith(API + "/")
         assert r.headers["Api-Key"] == "secret-key"
         assert r.headers["User-Agent"] == USER_AGENT
 
 
-async def test_unknown_domain_is_reported_by_name(fake: FakeKeitaro) -> None:
-    client = KeitaroClient(
-        "https://tlgk.host",
-        "k",
-        domain="in.posdk.xyz",
-        group="FORTESTS",
-        source="FORTESTS",
-        transport=httpx2.MockTransport(fake),
-    )
+async def test_unknown_domain_is_reported_by_name(fake: KeitaroStub) -> None:
+    client = make_client(fake, domain="in.posdk.xyz")
     with pytest.raises(KeitaroError, match="in.posdk.xyz"):
         await client.resolve_placement()
+    await client.aclose()
 
 
-async def test_creates_campaign_in_placement(client: KeitaroClient, fake: FakeKeitaro) -> None:
-    fake.routes[("POST", "/admin_api/v1/campaigns")] = {"id": 217026, "type": "position"}
+async def test_creates_campaign_in_placement(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("POST", "/campaigns")] = {"id": 217026, "type": "position"}
 
     campaign_id = await client.create_campaign(CampaignName("test_kondrashin_c1"), PLACEMENT)
 
@@ -126,9 +126,9 @@ async def test_creates_campaign_in_placement(client: KeitaroClient, fake: FakeKe
 
 
 async def test_geo_flow_redirects_countries_to_google(
-    client: KeitaroClient, fake: FakeKeitaro
+    client: KeitaroClient, fake: KeitaroStub
 ) -> None:
-    fake.routes[("POST", "/admin_api/v1/streams")] = {"id": 1}
+    fake.routes[("POST", "/streams")] = {"id": 1}
 
     await client.create_geo_flow(7, GeoRedirectFlow((CountryCode("AU"), CountryCode("RO"))))
 
@@ -146,9 +146,9 @@ async def test_geo_flow_redirects_countries_to_google(
 
 
 async def test_offer_flow_is_default_with_offer_shares(
-    client: KeitaroClient, fake: FakeKeitaro
+    client: KeitaroClient, fake: KeitaroStub
 ) -> None:
-    fake.routes[("POST", "/admin_api/v1/streams")] = {"id": 2}
+    fake.routes[("POST", "/streams")] = {"id": 2}
 
     await client.create_offer_flow(7, OfferFlow(OfferSet.evenly([18813])))
 
@@ -158,24 +158,22 @@ async def test_offer_flow_is_default_with_offer_shares(
     assert body["offers"] == [{"offer_id": 18813, "share": 100}]
 
 
-async def test_archives_campaign_with_delete(client: KeitaroClient, fake: FakeKeitaro) -> None:
-    fake.routes[("DELETE", "/admin_api/v1/campaigns/7")] = [{"id": 7, "state": "deleted"}]
+async def test_archives_campaign_with_delete(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("DELETE", "/campaigns/7")] = [{"id": 7, "state": "deleted"}]
 
     await client.archive_campaign(7)
 
-    assert [(r.method, r.url.path) for r in fake.requests] == [
-        ("DELETE", "/admin_api/v1/campaigns/7")
-    ]
+    assert [(r.method, r.url.path) for r in fake.requests] == [("DELETE", API + "/campaigns/7")]
 
 
-async def test_lists_campaigns_across_pages(client: KeitaroClient, fake: FakeKeitaro) -> None:
+async def test_lists_campaigns_across_pages(client: KeitaroClient, fake: KeitaroStub) -> None:
     total = PAGE_SIZE + 2
 
     def page(request: httpx2.Request) -> list[dict[str, Any]]:
         offset, limit = int(request.url.params["offset"]), int(request.url.params["limit"])
         return [{"id": i, "name": f"c{i}"} for i in range(offset, min(offset + limit, total))]
 
-    fake.routes[("GET", "/admin_api/v1/campaigns")] = page
+    fake.routes[("GET", "/campaigns")] = page
 
     campaigns = await client.list_campaigns()
 
@@ -184,9 +182,9 @@ async def test_lists_campaigns_across_pages(client: KeitaroClient, fake: FakeKei
     assert len(fake.requests) == 2
 
 
-async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: FakeKeitaro) -> None:
-    fake.routes[("GET", "/admin_api/v1/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
-    fake.routes[("GET", "/admin_api/v1/campaigns/7/streams")] = [GEO_STREAM, OFFER_STREAM]
+async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("GET", "/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
+    fake.routes[("GET", "/campaigns/7/streams")] = [GEO_STREAM, OFFER_STREAM]
 
     campaign = await client.get_campaign(7)
 
@@ -199,17 +197,17 @@ async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: Fa
     )
 
 
-async def test_reads_campaign_without_flows(client: KeitaroClient, fake: FakeKeitaro) -> None:
-    fake.routes[("GET", "/admin_api/v1/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
-    fake.routes[("GET", "/admin_api/v1/campaigns/7/streams")] = []
+async def test_reads_campaign_without_flows(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("GET", "/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
+    fake.routes[("GET", "/campaigns/7/streams")] = []
 
     campaign = await client.get_campaign(7)
 
     assert (campaign.geo_countries, campaign.offer_flow_id, campaign.offers) == ((), None, ())
 
 
-async def test_update_sends_full_offer_list_only(client: KeitaroClient, fake: FakeKeitaro) -> None:
-    fake.routes[("PUT", "/admin_api/v1/streams/1333322")] = OFFER_STREAM
+async def test_update_sends_full_offer_list_only(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("PUT", "/streams/1333322")] = OFFER_STREAM
 
     await client.update_offer_flow(1333322, OfferSet.evenly([1, 2, 3]))
 
@@ -233,9 +231,9 @@ async def test_update_sends_full_offer_list_only(client: KeitaroClient, fake: Fa
     ],
 )
 async def test_http_errors_become_keitaro_errors(
-    client: KeitaroClient, fake: FakeKeitaro, response: httpx2.Response, detail: str
+    client: KeitaroClient, fake: KeitaroStub, response: httpx2.Response, detail: str
 ) -> None:
-    fake.routes[("DELETE", "/admin_api/v1/campaigns/7")] = response
+    fake.routes[("DELETE", "/campaigns/7")] = response
 
     with pytest.raises(KeitaroError, match=str(response.status_code)) as error:
         await client.archive_campaign(7)
@@ -243,17 +241,13 @@ async def test_http_errors_become_keitaro_errors(
     assert detail in str(error.value)
 
 
-async def test_network_failure_becomes_keitaro_error(fake: FakeKeitaro) -> None:
+async def test_network_failure_becomes_keitaro_error(
+    client: KeitaroClient, fake: KeitaroStub
+) -> None:
     def refuse(request: httpx2.Request) -> httpx2.Response:
         raise httpx2.ConnectError("connection refused", request=request)
 
-    client = KeitaroClient(
-        "https://tlgk.host",
-        "k",
-        domain="d",
-        group="g",
-        source="s",
-        transport=httpx2.MockTransport(refuse),
-    )
+    fake.routes[("DELETE", "/campaigns/7")] = refuse
+
     with pytest.raises(KeitaroError, match="недоступен"):
         await client.archive_campaign(7)

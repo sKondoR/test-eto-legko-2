@@ -67,7 +67,7 @@ DB tables: `campaigns` (campaigns created via the app; geo stored as array) and 
 - `PUT /streams/{id}` updates only the keys sent. With `offers` it replaces the whole array: offers missing from it are removed, `[]` clears the flow. An offer that stays keeps its row and its `state` even when `state` is not sent, so we never send `state`; new offers get `active`.
 - `DELETE /campaigns/{id}` moves the campaign to the archive (`state: "deleted"`); after that `GET /campaigns/{id}` returns a 404 nginx HTML page, not JSON.
 - The API key reads offers but cannot create them (`POST /offers` → 403 "no permission … Offers"); the tracker has one offer (18813). The tracker has only the domain `kylovoa.com`.
-- Verified by a write probe on `test_kondrashin_probe` (2026-11-20, archived). Writes to the live tracker are blocked for Claude by the auto-mode classifier: the user runs such scripts via `! <command>`.
+- Claude cannot write to the live tracker (the auto-mode classifier blocks it): prepare a script and let the user run it via `! <command>`.
 - Browser never calls Keitaro directly — only our `/api`.
 
 ## Environment
