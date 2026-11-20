@@ -4,6 +4,10 @@
 !.env.example
 *.pem
 *.key
+*.pfx
+*.p12
+id_rsa*
+credentials*.json
 
 # node
 node_modules/

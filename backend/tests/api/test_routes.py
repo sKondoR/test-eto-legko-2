@@ -11,6 +11,9 @@ from app.services.offer_editor import OfferEditor
 from tests.helpers import PLACEMENT, shares
 from tests.services.fakes import FakeKeitaro, FakeLog
 
+# TrustedHostMiddleware пускает только localhost, а не адрес TestClient по умолчанию (testserver).
+BASE_URL = "http://localhost"
+
 
 @pytest.fixture
 def keitaro() -> FakeKeitaro:
@@ -28,7 +31,7 @@ def client(keitaro: FakeKeitaro) -> TestClient:
     app.state.default_geo = parse_countries(["AU"])
     app.state.campaigns = CampaignService(keitaro, log)
     app.state.editor = OfferEditor(keitaro, log)
-    return TestClient(app)
+    return TestClient(app, base_url=BASE_URL)
 
 
 def post_campaign(client: TestClient, **fields: Any) -> Any:
@@ -165,7 +168,21 @@ def test_missing_field_is_named(client: TestClient) -> None:
 def test_unexpected_error_is_500_with_detail(client: TestClient, keitaro: FakeKeitaro) -> None:
     keitaro.campaigns = None  # type: ignore[assignment]  # сломанный порт: TypeError внутри
 
-    response = TestClient(app, raise_server_exceptions=False).get("/api/campaigns")
+    response = TestClient(app, base_url=BASE_URL, raise_server_exceptions=False).get(
+        "/api/campaigns"
+    )
 
     assert response.status_code == 500
     assert response.json()["detail"].startswith("Внутренняя ошибка сервера")
+
+
+@pytest.mark.parametrize(
+    ("base_url", "status"),
+    [
+        ("http://localhost:5173", 200),  # через прокси Vite
+        ("http://127.0.0.1:8000", 200),  # напрямую в uvicorn
+        ("http://evil.example", 400),  # DNS rebinding: чужой домен, указывающий на 127.0.0.1
+    ],
+)
+def test_only_local_hosts_are_served(base_url: str, status: int) -> None:
+    assert TestClient(app, base_url=base_url).get("/api/health").status_code == status

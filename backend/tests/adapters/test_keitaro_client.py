@@ -203,6 +203,16 @@ async def test_reads_campaign_geo_and_offer_flow(client: KeitaroClient, fake: Ke
     )
 
 
+async def test_hand_edited_geo_filter_drops_repeated_countries(
+    client: KeitaroClient, fake: KeitaroStub
+) -> None:
+    geo = GEO_STREAM | {"filters": [{"name": "country", "mode": "accept", "payload": ["AU", "AU"]}]}
+    fake.routes[("GET", "/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
+    fake.routes[("GET", "/campaigns/7/streams")] = [geo, OFFER_STREAM]
+
+    assert (await client.get_campaign(7)).geo_countries == ("AU",)
+
+
 async def test_reads_campaign_without_flows(client: KeitaroClient, fake: KeitaroStub) -> None:
     fake.routes[("GET", "/campaigns/7")] = {"id": 7, "name": "test_kondrashin_c1"}
     fake.routes[("GET", "/campaigns/7/streams")] = []

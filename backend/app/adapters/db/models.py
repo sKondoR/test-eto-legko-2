@@ -7,6 +7,8 @@ from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.domain.campaign_name import MAX_LENGTH
+
 
 class Base(DeclarativeBase):
     pass
@@ -20,7 +22,7 @@ class CampaignRow(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     # None — Keitaro не успел создать кампанию.
     keitaro_id: Mapped[int | None]
-    name: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str] = mapped_column(String(MAX_LENGTH))
     geo: Mapped[list[str]] = mapped_column(ARRAY(String(2)))
     offer_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer))
     status: Mapped[str] = mapped_column(String(16))  # created | failed
