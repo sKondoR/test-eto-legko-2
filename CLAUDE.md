@@ -70,7 +70,7 @@ DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (e
 - `GET /api/campaigns` — our `test_kondrashin_*` campaigns; `POST /api/campaigns` `{name_suffix, countries, offer_id, domain_id}` → 201 `{id}`.
 - `GET /api/campaigns/{id}` — editor view: geo, offers, `disabled_offer_ids`, `is_even`, history (`CampaignLog.offer_history`, newest first).
 - `PUT /api/campaigns/{id}/offers` `{expected, offer_ids}` → `{offers}`; `expected` is what the editor showed, a mismatch gives 409.
-- Route tests put fakes into `app.state` and use `TestClient(app)` without `with`, so the lifespan (real Keitaro and Postgres) does not run.
+- Route tests put fakes into `app.state` and use `TestClient(app, base_url="http://localhost")` without `with`, so the lifespan (real Keitaro and Postgres) does not run. `TrustedHostMiddleware` accepts only `localhost`/`127.0.0.1` (DNS-rebinding guard), so TestClient's default `testserver` host gets 400.
 
 ## Keitaro Admin API
 

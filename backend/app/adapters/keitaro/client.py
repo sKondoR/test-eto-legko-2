@@ -191,7 +191,8 @@ def _geo_countries(streams: list[dict[str, Any]]) -> tuple[str, ...]:
             continue
         for f in stream["filters"]:
             if f["name"] == "country" and f["mode"] == "accept":
-                return tuple(f["payload"])
+                # Фильтр могли править вручную: повтор страны сломал бы список в редакторе.
+                return tuple(dict.fromkeys(f["payload"]))
     return ()
 
 

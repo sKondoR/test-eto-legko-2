@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from app.domain.errors import DomainError
 
 PREFIX = "test_kondrashin_"
+# По этой длине построена колонка campaigns.name в журнале: длиннее имя туда не влезет.
+MAX_LENGTH = 255
 _PATTERN = re.compile(re.escape(PREFIX) + r"[a-z0-9_]+")
 
 
@@ -21,6 +23,8 @@ class CampaignName:
             raise DomainError(
                 f"Имя кампании: префикс {PREFIX} и затем латиница в нижнем регистре, цифры или _"
             )
+        if len(self.value) > MAX_LENGTH:
+            raise DomainError(f"Имя кампании длиннее {MAX_LENGTH} символов")
 
     @classmethod
     def from_suffix(cls, suffix: str) -> "CampaignName":

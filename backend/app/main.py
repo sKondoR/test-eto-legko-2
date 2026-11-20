@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -52,6 +53,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Keitaro campaigns", lifespan=lifespan)
+# Приложение только локальное. Чужой домен, который указывает на 127.0.0.1 (DNS rebinding),
+# получает 400 и не может от имени пользователя создавать или править кампании в Keitaro.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
 
 
 def _error_handler(status: int) -> Callable[[Request, Exception], Awaitable[JSONResponse]]:

@@ -7,7 +7,8 @@ services:
       POSTGRES_DB: keitaro
     ports:
       # На хосте 5434: порты 5432 и 5433 часто заняты другими локальными Postgres.
-      - '5434:5432'
+      # Только 127.0.0.1: учётка app/app не должна быть видна из локальной сети.
+      - '127.0.0.1:5434:5432'
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
