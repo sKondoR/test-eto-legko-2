@@ -2,7 +2,8 @@
 import type { Editor, OfferShare } from './api'
 import { distributeShares } from './shares'
 
-export type RowStatus = 'kept' | 'added' | 'removed'
+// gone — оффер удалили из потока в Keitaro: в потоке его нет, но его можно вернуть.
+export type RowStatus = 'kept' | 'added' | 'removed' | 'gone'
 
 export interface Row {
   offer_id: number
@@ -66,7 +67,6 @@ export function isEvenSplit(shares: OfferShare[]): boolean {
   return sorted(shares.map((s) => s.share)) === sorted(distributeShares(shares.length))
 }
 
-/** Сохранение что-то поменяет: другой состав или порядок офферов, либо доли не поровну. */
 /** Поток в Keitaro тот же: офферы с долями, выключенные офферы и страны потока 1. История
  *  меняется только вместе с офферами, поэтому её не сравниваем. */
 export function sameFlow(
@@ -77,8 +77,18 @@ export function sameFlow(
   return key(a) === key(b)
 }
 
+/** Сохранение что-то поменяет: другой состав или порядок офферов, либо доли не поровну. */
 export function hasChanges(current: OfferShare[], offerIds: number[]): boolean {
   const sameIds =
     current.length === offerIds.length && current.every((s, i) => s.offer_id === offerIds[i])
   return !sameIds || !isEvenSplit(current)
+}
+
+/** Строки офферов, удалённых в Keitaro: редактор видел их в потоке (seen — все офферы потока
+ *  с последнего сохранения), а сейчас их нет ни в потоке, ни в правке пользователя. */
+export function goneRows(seen: number[], current: OfferShare[], offerIds: number[]): Row[] {
+  const shown = new Set([...current.map((s) => s.offer_id), ...offerIds])
+  return seen
+    .filter((id) => !shown.has(id))
+    .map((offer_id) => ({ offer_id, before: null, after: null, status: 'gone' as const }))
 }

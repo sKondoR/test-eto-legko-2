@@ -1,11 +1,12 @@
 <script lang="ts">
   // Создаётся заново на каждую кампанию ({#key} в App.svelte), поэтому campaignId не меняется.
   import { api, ApiError, type Editor, type OfferSummary } from '../lib/api'
-  import { readDraft, writeDraft } from '../lib/draft'
+  import { readDraft, readSeen, writeDraft, writeSeen } from '../lib/storage'
   import { formatTime, pct, regionName } from '../lib/format'
   import {
     addOffer,
     compareRows,
+    goneRows,
     hasChanges,
     MAX_OFFERS,
     parseOfferId,
@@ -37,6 +38,9 @@
   // Поток в Keitaro изменился, пока есть несохранённая правка: фон её не трогает, только сообщает.
   let outdated = $state(false)
   let refreshError = $state<string | null>(null)
+  // Все офферы, которые редактор видел в потоке с последнего сохранения. Пропавшие из потока
+  // в Keitaro видны зачёркнутыми (goneRows), их можно вернуть.
+  let seen = $state<number[]>([])
   // Номер последнего запроса кампании: ответ более раннего запроса устарел и отбрасывается.
   let latest = 0
   let loadedAt = $state<Date | null>(null)
@@ -47,13 +51,15 @@
   // Без правки показываем доли как есть: ровные 34/33/33 сохранение не трогает.
   const rows = $derived.by(() => {
     if (!data) return []
-    if (changed) return compareRows(data.offers, offerIds)
-    return data.offers.map((s) => ({
-      ...s,
-      before: s.share,
-      after: s.share,
-      status: 'kept' as const,
-    }))
+    const current = changed
+      ? compareRows(data.offers, offerIds)
+      : data.offers.map((s) => ({
+          ...s,
+          before: s.share,
+          after: s.share,
+          status: 'kept' as const,
+        }))
+    return [...current, ...goneRows(seen, data.offers, offerIds)]
   })
   const changed = $derived(data !== null && hasChanges(data.offers, offerIds))
   // Пользователь менял список: только тогда есть что отменять.
@@ -90,6 +96,8 @@
   /** keepEdits — оставить правку пользователя поверх свежих данных. */
   function apply(fresh: Editor, keepEdits: boolean): void {
     const first = data === null
+    seen = [...new Set([...(readSeen(campaignId) ?? []), ...fresh.offers.map((s) => s.offer_id)])]
+    writeSeen(campaignId, seen)
     data = fresh
     loadedAt = new Date()
     outdated = false
@@ -198,6 +206,8 @@
     try {
       await api.saveOffers(campaignId, { expected: data.offers, offer_ids: offerIds })
       notify('success', 'Офферы сохранены')
+      // Сохранённый список — новая точка отсчёта: убранное пользователем не «удалено в Keitaro».
+      writeSeen(campaignId, offerIds)
       // Ждём свежие данные: иначе повторный клик уйдёт со старым expected и получит 409.
       await load()
     } catch (error) {
@@ -301,13 +311,14 @@
         <tbody>
           {#each rows as row (row.offer_id)}
             {@const name = offerNames.get(row.offer_id) ?? `Оффер ${row.offer_id}`}
-            {@const removed = row.status === 'removed'}
+            {@const removed = row.status === 'removed' || row.status === 'gone'}
             <!-- Жёлтый фон — строка изменится при сохранении: оффер добавлен, убран или его доля станет другой -->
             <tr
               class={[
                 'border-b border-line',
                 row.before !== row.after && 'bg-amber/15',
                 removed && 'text-muted',
+                row.status === 'gone' && 'opacity-60',
               ]}
             >
               <td class="max-w-0 py-2.5">
@@ -320,6 +331,9 @@
                     {name}
                   </span>
                   {#if row.status === 'added'}<span class="text-sm text-cobalt">новый</span>{/if}
+                  {#if row.status === 'gone'}
+                    <span class="text-sm whitespace-nowrap">удалён в Keitaro</span>
+                  {/if}
                   {#if data.disabled_offer_ids.includes(row.offer_id)}
                     <span class="text-sm text-amber">выключен</span>
                   {/if}
@@ -358,6 +372,11 @@
           Добавить
         </button>
       </form>
+      <Warning>
+        В тестовом трекере всего один оффер (18813), а ключ API не может создавать новые. Поэтому
+        редактор принимает и ID офферов, которых нет в Keitaro: так можно проверить деление долей,
+        например 3 оффера → 33/33/34.
+      </Warning>
 
       <div class="flex flex-wrap items-center gap-3">
         <button

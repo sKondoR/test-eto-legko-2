@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addOffer,
   compareRows,
+  goneRows,
   hasChanges,
   parseOfferId,
   previewShares,
@@ -102,5 +103,13 @@ describe('sameFlow', () => {
     ['geo', { geo: ['AU', 'RO'] }],
   ])('a changed %s is a different flow', (_, change) => {
     expect(sameFlow(flow, { ...flow, ...change })).toBe(false)
+  })
+})
+
+describe('goneRows', () => {
+  it('shows seen offers that are neither in Keitaro nor returned by the user', () => {
+    expect(goneRows([2, 3, 4], shares([3, 100]), [3, 4])).toEqual([
+      { offer_id: 2, before: null, after: null, status: 'gone' },
+    ])
   })
 })
