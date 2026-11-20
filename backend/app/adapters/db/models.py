@@ -1,3 +1,5 @@
+"""Таблицы журнала: попытки создать кампанию и правки офферов в редакторе."""
+
 from datetime import datetime
 from typing import Any
 

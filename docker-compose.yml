@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: keitaro
     ports:
-      # 5434 on the host: 5432 and 5433 are often taken by other local Postgres instances.
+      # На хосте 5434: порты 5432 и 5433 часто заняты другими локальными Postgres.
       - '5434:5432'
     volumes:
       - pgdata:/var/lib/postgresql
