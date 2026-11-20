@@ -1,0 +1,6 @@
+backend/
+pnpm-lock.yaml
+**/dist/
+packages/api-types/openapi.json
+packages/api-types/src/schema.d.ts
+TASK.md
