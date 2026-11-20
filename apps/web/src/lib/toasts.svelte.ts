@@ -1,7 +1,7 @@
-// Уведомления: успех гаснет быстрее, ошибка висит дольше, чтобы её успели прочитать.
+// Уведомления: успех гаснет быстрее, ошибка и предупреждение висят дольше, чтобы их успели прочитать.
 export interface Toast {
   id: number
-  kind: 'success' | 'error'
+  kind: 'success' | 'warning' | 'error'
   text: string
 }
 
@@ -12,11 +12,15 @@ let nextId = 1
 export function notify(kind: Toast['kind'], text: string): void {
   const id = nextId++
   toasts.push({ id, kind, text })
-  setTimeout(() => dismiss(id), kind === 'error' ? 8000 : 4000)
+  setTimeout(() => dismiss(id), kind === 'success' ? 4000 : 8000)
+}
+
+export function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export function notifyError(error: unknown): void {
-  notify('error', error instanceof Error ? error.message : String(error))
+  notify('error', errorText(error))
 }
 
 export function dismiss(id: number): void {

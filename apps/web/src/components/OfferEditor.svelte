@@ -1,7 +1,8 @@
 <script lang="ts">
   // Создаётся заново на каждую кампанию ({#key} в App.svelte), поэтому campaignId не меняется.
   import { api, ApiError, type Editor, type OfferSummary } from '../lib/api'
-  import { pct, regionName } from '../lib/format'
+  import { readDraft, writeDraft } from '../lib/draft'
+  import { formatTime, pct, regionName } from '../lib/format'
   import {
     addOffer,
     compareRows,
@@ -9,12 +10,15 @@
     MAX_OFFERS,
     parseOfferId,
     previewShares,
+    sameFlow,
     segmentColors,
   } from '../lib/offers'
-  import { notify, notifyError } from '../lib/toasts.svelte'
+  import { errorText, notify, notifyError } from '../lib/toasts.svelte'
   import History from './History.svelte'
+  import Icon from './Icon.svelte'
   import OfferPicker from './OfferPicker.svelte'
   import SplitBar from './SplitBar.svelte'
+  import Warning from './Warning.svelte'
 
   let {
     campaignId,
@@ -26,6 +30,16 @@
   let offerIds = $state<number[]>([])
   let offerText = $state('')
   let saving = $state(false)
+  // Идёт фоновое обновление (по таймеру или при возврате на вкладку).
+  let background = false
+  // Иконка «Обновить» крутится только по кнопке: фоновое обновление раз в 10 секунд её не трогает.
+  let spinning = $state(false)
+  // Поток в Keitaro изменился, пока есть несохранённая правка: фон её не трогает, только сообщает.
+  let outdated = $state(false)
+  let refreshError = $state<string | null>(null)
+  // Номер последнего запроса кампании: ответ более раннего запроса устарел и отбрасывается.
+  let latest = 0
+  let loadedAt = $state<Date | null>(null)
 
   // Set: в потоке, правленом вручную, оффер может повторяться; сохранение это починит.
   const original = $derived([...new Set(data?.offers.map((s) => s.offer_id))])
@@ -57,15 +71,107 @@
     return null
   })
 
-  /** keepEdits — после 409 оставить правку пользователя поверх свежих данных. */
-  async function load(keepEdits = false): Promise<void> {
+  // Keitaro не сообщает о правках в админке: перечитываем кампанию по таймеру, при возврате
+  // на вкладку и по кнопке «Обновить».
+  const REFRESH_MS = 10_000
+
+  async function fetchEditor(): Promise<Editor | null> {
+    const request = ++latest
     try {
-      data = await api.editor(campaignId)
-      if (!keepEdits) offerIds = original
+      const fresh = await api.editor(campaignId)
+      return request === latest ? fresh : null
     } catch (error) {
-      notifyError(error)
+      // Ошибка устаревшего запроса тоже не в счёт: более новый запрос уже идёт или прошёл.
+      if (request === latest) throw error
+      return null
     }
   }
+
+  /** keepEdits — оставить правку пользователя поверх свежих данных. */
+  function apply(fresh: Editor, keepEdits: boolean): void {
+    const first = data === null
+    data = fresh
+    loadedAt = new Date()
+    outdated = false
+    refreshError = null
+    if (keepEdits) return
+    const draft = first ? readDraft(campaignId) : null
+    if (draft && draft.join() !== original.join()) {
+      // После F5 возвращаем несохранённую правку. Она ляжет на свежие данные без 409, поэтому
+      // просим проверить её перед сохранением.
+      offerIds = draft
+      notify('warning', 'Восстановлена несохранённая правка — проверьте её перед сохранением')
+    } else {
+      offerIds = original
+    }
+  }
+
+  async function load(keepEdits = false): Promise<void> {
+    try {
+      const fresh = await fetchEditor()
+      if (fresh) apply(fresh, keepEdits)
+    } catch (error) {
+      notifyError(error)
+      refreshError = errorText(error)
+    }
+  }
+
+  /** Несохранённую правку не трогает. Фоновое обновление (manual = false) не подставляет
+   *  свежие данные под правку: от data берётся expected, и сохранение должно получить 409.
+   *  Ручное обновление идёт и поверх фонового: ответ фонового тогда отбрасывается.
+   *  Если первая загрузка не удалась (data === null), обновление загружает кампанию заново. */
+  async function refresh(manual: boolean): Promise<void> {
+    if (saving || spinning || (!manual && background)) return
+    // Первая загрузка ещё идёт: фоновый запрос перебил бы её ответ. Фон подхватывает кампанию,
+    // только если первая загрузка упала.
+    if (!manual && !data && !refreshError) return
+    if (manual) spinning = true
+    else background = true
+    try {
+      const fresh = await fetchEditor()
+      if (!fresh || saving) return
+      if (!data) return apply(fresh, false)
+      refreshError = null
+      // Поток тот же: data не трогаем, чтобы тик таймера не перерисовывал редактор.
+      if (sameFlow(fresh, data)) {
+        loadedAt = new Date()
+        outdated = false
+        if (manual) notify('success', 'В Keitaro ничего не изменилось')
+        return
+      }
+      if (!manual && edited) {
+        outdated = true
+        return
+      }
+      const keepEdits = edited
+      apply(fresh, keepEdits)
+      if (keepEdits) {
+        notify('warning', 'Поток изменили в Keitaro. Ваша правка осталась — проверьте её')
+      } else {
+        notify('success', 'Офферы обновлены из Keitaro')
+      }
+    } catch (error) {
+      if (manual) notifyError(error)
+      else refreshError = errorText(error)
+    } finally {
+      if (manual) spinning = false
+      else background = false
+    }
+  }
+
+  function refreshIfVisible(): void {
+    if (document.visibilityState === 'visible') void refresh(false)
+  }
+
+  // Черновик правки в sessionStorage: переживает F5, пропадает после сохранения или отмены.
+  $effect(() => {
+    if (data) writeDraft(campaignId, edited ? offerIds : null)
+  })
+
+  $effect(() => {
+    const timer = setInterval(refreshIfVisible, REFRESH_MS)
+    return () => clearInterval(timer)
+  })
 
   function add(event: SubmitEvent): void {
     event.preventDefault()
@@ -106,15 +212,49 @@
 </script>
 
 {#if data === null}
-  <p class="text-muted">Загружаю кампанию…</p>
+  {#if refreshError}
+    <p class="text-danger">Не удалось загрузить кампанию: {refreshError}</p>
+    <p class="mt-1 text-sm text-muted">Редактор попробует снова через 10 секунд.</p>
+    <button
+      type="button"
+      class="btn-secondary mt-4 px-4 py-2 font-medium"
+      disabled={spinning}
+      onclick={() => refresh(true)}
+    >
+      Повторить
+    </button>
+  {:else}
+    <p class="text-muted">Загружаю кампанию…</p>
+  {/if}
 {:else}
   <article class="flex flex-col gap-8">
     <header>
-      <h1 class="text-2xl break-all">
-        <span class="text-muted">{prefix}</span><span class="font-semibold">
-          {data.name.slice(prefix.length)}
-        </span>
-      </h1>
+      <div class="flex items-start justify-between gap-4">
+        <h1 class="text-2xl break-all">
+          <span class="text-muted">{prefix}</span><span class="font-semibold">
+            {data.name.slice(prefix.length)}
+          </span>
+        </h1>
+        <div class="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            class="btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-sm"
+            disabled={spinning || saving}
+            aria-busy={spinning}
+            onclick={() => refresh(true)}
+          >
+            <Icon name="refresh" class={['size-3.5 text-muted', spinning && 'animate-spin']} />
+            Обновить
+          </button>
+          {#if refreshError}
+            <p class="line-clamp-2 max-w-64 text-right text-xs text-danger" title={refreshError}>
+              Не обновилось: {refreshError}
+            </p>
+          {:else if loadedAt}
+            <p class="text-xs text-muted tabular-nums">Данные на {formatTime(loadedAt)}</p>
+          {/if}
+        </div>
+      </div>
       <p class="mt-1 text-muted">
         Поток 1 отправляет трафик из
         {#each data.geo as code, i (code)}{i ? ', ' : ''}<span
@@ -139,8 +279,14 @@
         label={changed ? 'После сохранения' : 'Сейчас в Keitaro'}
       />
 
+      {#if outdated && edited}
+        <Warning>
+          Поток изменили в Keitaro, пока вы правили. Нажмите «Обновить», чтобы увидеть свежие
+          данные: ваша правка останется.
+        </Warning>
+      {/if}
       {#if warning}
-        <p class="rounded-md border-l-4 border-amber bg-white px-4 py-3 text-sm">{warning}</p>
+        <Warning>{warning}</Warning>
       {/if}
 
       <table class="w-full border-collapse text-left">
@@ -156,7 +302,14 @@
           {#each rows as row (row.offer_id)}
             {@const name = offerNames.get(row.offer_id) ?? `Оффер ${row.offer_id}`}
             {@const removed = row.status === 'removed'}
-            <tr class={['border-b border-line', removed && 'text-muted']}>
+            <!-- Жёлтый фон — строка изменится при сохранении: оффер добавлен, убран или его доля станет другой -->
+            <tr
+              class={[
+                'border-b border-line',
+                row.before !== row.after && 'bg-amber/15',
+                removed && 'text-muted',
+              ]}
+            >
               <td class="max-w-0 py-2.5">
                 <span class="flex items-center gap-2.5">
                   <span
@@ -199,7 +352,7 @@
         </div>
         <button
           type="submit"
-          class="rounded-md border border-line bg-white px-4 py-2 font-medium hover:bg-fog disabled:opacity-50"
+          class="btn-secondary px-4 py-2 font-medium"
           disabled={offerText.trim() === ''}
         >
           Добавить
@@ -234,3 +387,5 @@
     <History entries={data.history} />
   </article>
 {/if}
+
+<svelte:document onvisibilitychange={refreshIfVisible} />

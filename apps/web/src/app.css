@@ -25,6 +25,10 @@
   @apply rounded-md bg-cobalt px-5 py-2.5 font-medium text-white hover:bg-cobalt-dark disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+@utility btn-secondary {
+  @apply rounded-md border border-line bg-white hover:bg-fog disabled:opacity-50;
+}
+
 @layer base {
   body {
     @apply bg-fog font-sans text-ink antialiased;
@@ -32,6 +36,15 @@
 
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-cobalt;
+  }
+
+  ::selection {
+    @apply bg-cobalt/20;
+  }
+
+  input,
+  select {
+    @apply caret-cobalt;
   }
 }
 

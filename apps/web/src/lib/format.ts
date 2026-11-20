@@ -15,6 +15,8 @@ export const formatDateTime = new Intl.DateTimeFormat('ru', {
   timeStyle: 'short',
 }).format
 
+export const formatTime = new Intl.DateTimeFormat('ru', { timeStyle: 'medium' }).format
+
 export function pct(share: number | null): string {
   return share === null ? '—' : `${share}%`
 }

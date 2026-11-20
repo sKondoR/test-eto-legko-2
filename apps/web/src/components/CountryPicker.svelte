@@ -1,5 +1,6 @@
 <script lang="ts">
   import { regionName } from '../lib/format'
+  import Icon from './Icon.svelte'
 
   let {
     id,
@@ -41,11 +42,11 @@
       <span class="text-muted">{regionName(code)}</span>
       <button
         type="button"
-        class="rounded px-1 text-muted hover:text-ink"
+        class="rounded p-0.5 text-muted hover:text-ink"
         aria-label={`Убрать ${regionName(code)}`}
         onclick={() => (selected = selected.filter((c) => c !== code))}
       >
-        ✕
+        <Icon name="close" class="size-3.5" />
       </button>
     </span>
   {/each}
