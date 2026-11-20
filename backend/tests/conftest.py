@@ -10,12 +10,20 @@ from app.config import ROOT, get_settings
 
 # Создаётся при первом запуске контейнера: docker/create-test-db.sql.
 TEST_DB = "keitaro_test"
+# Фикстура стирает схему и данные, поэтому работает только с локальным Postgres.
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 @pytest.fixture(scope="session")
 def test_db_url() -> str:
     """База keitaro_test со схемой из миграций. Сначала откат: так проверяется и downgrade."""
     url = make_url(get_settings().database_url).set(database=TEST_DB)
+    if url.host not in LOCAL_HOSTS:
+        pytest.fail(
+            f"Тесты БД стирают {TEST_DB}, а DATABASE_URL указывает на {url.host!r}. "
+            "Запускайте их только с локальным Postgres (docker compose up -d db).",
+            pytrace=False,
+        )
     url_str = url.render_as_string(hide_password=False)
     config = Config(ROOT / "backend" / "alembic.ini")
     config.attributes["url"] = url_str
