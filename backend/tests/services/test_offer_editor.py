@@ -11,8 +11,12 @@ CAMPAIGN_ID = 1
 FLOW_ID = 10
 
 
-def keitaro_with(offers: tuple[OfferShare, ...], flow_id: int | None = FLOW_ID) -> FakeKeitaro:
-    state = CampaignState(CAMPAIGN_ID, "test_kondrashin_c1", ("AU",), flow_id, offers)
+def keitaro_with(
+    offers: tuple[OfferShare, ...],
+    flow_id: int | None = FLOW_ID,
+    name: str = "test_kondrashin_c1",
+) -> FakeKeitaro:
+    state = CampaignState(CAMPAIGN_ID, name, ("AU",), flow_id, offers)
     return FakeKeitaro(campaigns={CAMPAIGN_ID: state})
 
 
@@ -89,3 +93,22 @@ async def test_save_fails_when_campaign_has_no_offer_flow() -> None:
 
     with pytest.raises(DomainError):
         await OfferEditor(keitaro, FakeLog()).save(CAMPAIGN_ID, expected=(), offer_ids=[1])
+
+
+async def test_open_rejects_foreign_campaign() -> None:
+    keitaro = keitaro_with(shares((1, 100)), name="test_ivanov_c1")
+
+    with pytest.raises(DomainError):
+        await OfferEditor(keitaro, FakeLog()).open(CAMPAIGN_ID)
+
+
+async def test_save_never_touches_foreign_campaign() -> None:
+    keitaro, log = keitaro_with(shares((1, 100)), name="test_ivanov_c1"), FakeLog()
+
+    with pytest.raises(DomainError):
+        await OfferEditor(keitaro, log).save(
+            CAMPAIGN_ID, expected=shares((1, 100)), offer_ids=[1, 2]
+        )
+
+    assert "update_offer_flow" not in keitaro.calls
+    assert log.changes == []

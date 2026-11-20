@@ -77,5 +77,5 @@ class FakeLog:
     async def campaign_failed(self, keitaro_id: int | None, plan: CampaignPlan, error: str) -> None:
         self.failed.append((keitaro_id, plan, error))
 
-    async def offers_changed(self, campaign_id: int, change: OfferChange) -> None:
-        self.changes.append((campaign_id, change))
+    async def offers_changed(self, keitaro_id: int, change: OfferChange) -> None:
+        self.changes.append((keitaro_id, change))

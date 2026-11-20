@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from app.domain.campaign_name import PREFIX, CampaignName
+from app.domain.campaign_name import CampaignName, is_ours
 from app.domain.countries import parse_countries
 from app.domain.errors import KeitaroError
 from app.domain.plan import build_campaign_plan
@@ -38,4 +38,4 @@ class CampaignService:
         return campaign_id
 
     async def list_ours(self) -> list[CampaignSummary]:
-        return [c for c in await self._keitaro.list_campaigns() if c.name.startswith(PREFIX)]
+        return [c for c in await self._keitaro.list_campaigns() if is_ours(c.name)]
