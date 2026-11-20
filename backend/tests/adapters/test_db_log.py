@@ -87,3 +87,19 @@ async def test_migrations_match_models(test_db_url: str) -> None:
     await engine.dispose()
 
     assert changes == []
+
+
+async def test_reads_offer_history_newest_first(
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    log = SqlCampaignLog(sessions)
+    first = diff(shares((1, 100)), OfferSet.evenly([1, 2]))
+    second = diff(first.after, OfferSet.evenly([2]))
+    await log.offers_changed(5, first)
+    await log.offers_changed(6, diff((), OfferSet.evenly([9])))
+    await log.offers_changed(5, second)
+
+    history = await log.offer_history(5)
+
+    assert [e.change for e in history] == [second, first]
+    assert history[0].changed_at >= history[1].changed_at

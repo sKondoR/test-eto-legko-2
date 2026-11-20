@@ -8,10 +8,10 @@ import pytest
 from app.adapters.keitaro.client import PAGE_SIZE, USER_AGENT, KeitaroClient
 from app.domain.campaign_name import CampaignName
 from app.domain.countries import CountryCode
-from app.domain.errors import KeitaroError
+from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferSet
 from app.domain.plan import GeoRedirectFlow, OfferFlow
-from app.domain.ports import CampaignState, CampaignSummary
+from app.domain.ports import CampaignState, CampaignSummary, OfferSummary
 from tests.helpers import PLACEMENT, shares
 
 API = "/admin_api/v1"
@@ -229,7 +229,6 @@ async def test_update_sends_full_offer_list_only(client: KeitaroClient, fake: Ke
     [
         (httpx2.Response(403, json={"error": "You have no permission"}), "You have no permission"),
         (httpx2.Response(403, text="error code: 1010\n"), "error code: 1010"),
-        (httpx2.Response(404, html="<html><h1>404 Not Found</h1></html>"), "404 Not Found"),
         (httpx2.Response(500), "Internal Server Error"),
     ],
 )
@@ -269,3 +268,19 @@ async def test_empty_success_body_is_fine(client: KeitaroClient, fake: KeitaroSt
     fake.routes[("DELETE", "/campaigns/7")] = httpx2.Response(204)
 
     await client.archive_campaign(7)
+
+
+async def test_not_found_becomes_not_found_error(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("GET", "/campaigns/7")] = httpx2.Response(404, html="<h1>404 Not Found</h1>")
+    fake.routes[("GET", "/campaigns/7/streams")] = []
+
+    with pytest.raises(NotFoundError, match="404"):
+        await client.get_campaign(7)
+
+
+async def test_lists_offers(client: KeitaroClient, fake: KeitaroStub) -> None:
+    fake.routes[("GET", "/offers")] = [
+        {"id": 18813, "name": "18813 Flexacil", "state": "active", "offer_type": "local"}
+    ]
+
+    assert await client.list_offers() == [OfferSummary(18813, "18813 Flexacil")]

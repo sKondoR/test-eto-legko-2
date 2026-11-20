@@ -1,12 +1,13 @@
 """In-memory реализации портов для тестов сервисов."""
 
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 
 from app.domain.campaign_name import CampaignName
-from app.domain.errors import KeitaroError
+from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferChange, OfferSet
 from app.domain.plan import CampaignPlan, GeoRedirectFlow, OfferFlow, Placement
-from app.domain.ports import CampaignState, CampaignSummary
+from app.domain.ports import CampaignState, CampaignSummary, OfferHistoryEntry, OfferSummary
 
 
 @dataclass
@@ -14,6 +15,7 @@ class FakeKeitaro:
     placement: Placement | None = None  # None — размещение в Keitaro не найдено
     campaigns: dict[int, CampaignState] = field(default_factory=dict)
     archived: list[int] = field(default_factory=list)
+    offers: list[OfferSummary] = field(default_factory=list)
     fail_on: set[str] = field(default_factory=set)  # имена методов, которые бросят KeitaroError
     calls: list[str] = field(default_factory=list)
     _next_id: int = field(default=100, init=False, repr=False)
@@ -56,6 +58,8 @@ class FakeKeitaro:
 
     async def get_campaign(self, campaign_id: int) -> CampaignState:
         self._call("get_campaign")
+        if campaign_id not in self.campaigns:
+            raise NotFoundError(f"Кампания {campaign_id} не найдена")
         return self.campaigns[campaign_id]
 
     async def update_offer_flow(self, flow_id: int, offers: OfferSet) -> None:
@@ -63,6 +67,10 @@ class FakeKeitaro:
         for c in self.campaigns.values():
             if c.offer_flow_id == flow_id:
                 self.campaigns[c.id] = replace(c, offers=offers.shares)
+
+    async def list_offers(self) -> list[OfferSummary]:
+        self._call("list_offers")
+        return self.offers
 
 
 @dataclass
@@ -79,3 +87,7 @@ class FakeLog:
 
     async def offers_changed(self, keitaro_id: int, change: OfferChange) -> None:
         self.changes.append((keitaro_id, change))
+
+    async def offer_history(self, keitaro_id: int) -> list[OfferHistoryEntry]:
+        moment = datetime(2026, 11, 20, tzinfo=UTC)
+        return [OfferHistoryEntry(moment, c) for i, c in reversed(self.changes) if i == keitaro_id]

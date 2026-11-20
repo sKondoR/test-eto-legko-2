@@ -7,10 +7,10 @@ from typing import Any
 import httpx2
 
 from app.domain.campaign_name import CampaignName
-from app.domain.errors import KeitaroError
+from app.domain.errors import KeitaroError, NotFoundError
 from app.domain.offers import OfferSet, OfferShare
 from app.domain.plan import GOOGLE_URL, GeoRedirectFlow, OfferFlow, Placement
-from app.domain.ports import CampaignState, CampaignSummary
+from app.domain.ports import CampaignState, CampaignSummary, OfferSummary
 
 # Cloudflare перед трекером отвечает 403 (error 1010) на User-Agent библиотек вроде Python-urllib.
 USER_AGENT = "keitaro-campaigns/0.1"
@@ -143,11 +143,17 @@ class KeitaroClient:
         # PUT заменяет весь массив offers. state у оставшихся офферов Keitaro сохраняет сам.
         await self._request("PUT", f"/streams/{flow_id}", json={"offers": _offers_payload(offers)})
 
+    async def list_offers(self) -> list[OfferSummary]:
+        return [OfferSummary(o["id"], o["name"]) for o in await self._request("GET", "/offers")]
+
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         try:
             response = await self._http.request(method, path, **kwargs)
         except httpx2.TransportError as error:
             raise KeitaroError(f"Keitaro недоступен: {error}") from error
+        if response.status_code == 404:
+            # Тело 404 — HTML-страница nginx, показывать её пользователю незачем.
+            raise NotFoundError(f"В Keitaro не найдено (404): {method} {path}")
         if response.is_error:
             raise KeitaroError(
                 f"Keitaro вернул ошибку {response.status_code} на {method} {path}: "

@@ -3,7 +3,7 @@ import pytest
 from app.domain.errors import DomainError, KeitaroError
 from app.domain.offers import OfferShare
 from app.domain.plan import Placement
-from app.domain.ports import CampaignState
+from app.domain.ports import CampaignState, OfferSummary
 from app.services.campaigns import CampaignService
 from tests.services.fakes import FakeKeitaro, FakeLog
 
@@ -123,3 +123,9 @@ async def test_lists_only_our_campaigns(service: CampaignService, keitaro: FakeK
     keitaro.campaigns[1] = CampaignState(1, "test_ivanov_c1", (), None, ())
 
     assert [c.id for c in await service.list_ours()] == [ours]
+
+
+async def test_lists_offers_from_keitaro(service: CampaignService, keitaro: FakeKeitaro) -> None:
+    keitaro.offers = [OfferSummary(18813, "Flexacil")]
+
+    assert await service.list_offers() == [OfferSummary(18813, "Flexacil")]

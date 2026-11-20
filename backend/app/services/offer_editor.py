@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from app.domain.campaign_name import PREFIX, is_ours
 from app.domain.errors import ConflictError, DomainError
 from app.domain.offers import OfferSet, OfferShare, diff, is_even_split
-from app.domain.ports import CampaignLog, CampaignState, KeitaroPort
+from app.domain.ports import CampaignLog, CampaignState, KeitaroPort, OfferHistoryEntry
 
 
 @dataclass(frozen=True)
@@ -12,6 +12,7 @@ class EditorView:
     campaign: CampaignState
     # False — доли ручные или часть офферов выключена в Keitaro: интерфейс предупреждает.
     is_even: bool
+    history: list[OfferHistoryEntry]
 
 
 class OfferEditor:
@@ -22,7 +23,7 @@ class OfferEditor:
     async def open(self, campaign_id: int) -> EditorView:
         campaign = await self._get_ours(campaign_id)
         is_even = is_even_split(campaign.offers) and not campaign.disabled_offer_ids
-        return EditorView(campaign, is_even)
+        return EditorView(campaign, is_even, await self._log.offer_history(campaign_id))
 
     async def save(
         self, campaign_id: int, expected: Sequence[OfferShare], offer_ids: Sequence[int]
