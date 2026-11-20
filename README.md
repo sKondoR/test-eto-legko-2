@@ -34,7 +34,17 @@
    ```sh
    docker compose up -d db
    ```
+   Postgres доступен на порту **5434** (не 5432): так он не конфликтует с другими Postgres на машине.
+   Если `.env` у вас уже был со старым портом, поменяйте в `DATABASE_URL` `:5432/` на `:5434/`.
    База `keitaro_test` создаётся только при первом запуске, на пустом томе. Если том `pgdata` остался от старой версии без неё, пересоздайте его: `docker compose down -v && docker compose up -d db`.
+5. Создайте таблицы (миграции Alembic лежат в `backend/migrations/versions`):
+   ```sh
+   pnpm db:migrate
+   ```
+   Новая миграция после изменения моделей в `backend/app/adapters/db/models.py`. Alembic сравнивает модели с базой, поэтому база должна быть на последней миграции (`pnpm db:migrate`):
+   ```sh
+   uv run --directory backend alembic revision --autogenerate -m "что изменилось"
+   ```
 
 ## Запуск для разработки
 
@@ -47,7 +57,7 @@ pnpm dev
 ## Проверки
 
 ```sh
-pnpm test   # pytest (бэкенд) + vitest (фронт)
+pnpm test   # pytest (бэкенд) + vitest (фронт); нужен запущенный Postgres (шаг 4)
 pnpm lint   # ruff + prettier + svelte-check
 ```
 

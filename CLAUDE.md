@@ -27,8 +27,9 @@ Submitted as the public GitHub repo `sKondoR/test-eto-legko-2`; reviewers run it
 - `pnpm gen:api` — dump OpenAPI via `python -m app.openapi_dump` (no server needed) and regenerate `packages/api-types` (run after changing API schemas).
 - `pnpm lint` — ruff + prettier + svelte-check.
 - `docker compose up db` — Postgres only (for running backend via uv); `docker compose up` — whole app.
-- Migrations: `pnpm db:migrate` (= `uv run --directory backend alembic upgrade head`).
-- Tests: `pnpm test`; backend only `uv run --directory backend pytest` (single: `... pytest tests/domain/test_shares.py::test_name`); web: `pnpm --filter web test` (vitest).
+- Migrations: `pnpm db:migrate` (= `uv run --directory backend alembic upgrade head`); new one: `uv run --directory backend alembic revision --autogenerate -m "..."`. Migrations live in `backend/migrations/` (not `alembic/`: that name shadows the `alembic` package for isort); `migrations/env.py` takes the URL from `config.attributes["url"]` (tests) or `DATABASE_URL`.
+- Postgres listens on host port **5434** (5432/5433 are often taken by other local Postgres instances).
+- Tests: `pnpm test` (needs `docker compose up -d db`: DB tests migrate `keitaro_test` down to base and up to head, then truncate per test); backend only `uv run --directory backend pytest` (single: `... pytest tests/domain/test_shares.py::test_name`); web: `pnpm --filter web test` (vitest).
 
 ## Backend architecture ("fat domain")
 
@@ -56,7 +57,7 @@ Campaign shape (matches the reference screenshots in `TASK.md`):
 - Creation is several API calls; if a flow fails, the service archives the campaign (`DELETE /campaigns/{id}`) and logs status `failed`.
 - Editor saves on an explicit "Save"; before saving the service re-reads the flow and returns 409 if offers changed in Keitaro meanwhile.
 
-DB tables: `campaigns` (campaigns created via the app; geo stored as array) and `offer_changes` (before → after log, shown as history in the editor). Both store the Keitaro campaign ID as `keitaro_id`; `offer_changes` has no foreign key to `campaigns`, because the editor also opens `test_kondrashin_*` campaigns created outside the app.
+DB tables (`adapters/db/models.py`, written by `SqlCampaignLog`): `campaigns` (every creation attempt: `status` `created`/`failed`, `error`, `keitaro_id` NULL when Keitaro never created it; geo and offer IDs stored as arrays) and `offer_changes` (before → after as JSONB `[{offer_id, share}]`; added/removed are derived from them; shown as history in the editor). Both store the Keitaro campaign ID as `keitaro_id`; `offer_changes` has no foreign key to `campaigns`, because the editor also opens `test_kondrashin_*` campaigns created outside the app.
 
 ## Keitaro Admin API
 

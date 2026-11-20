@@ -10,12 +10,11 @@ from app.domain.campaign_name import CampaignName
 from app.domain.countries import CountryCode
 from app.domain.errors import KeitaroError
 from app.domain.offers import OfferSet
-from app.domain.plan import GeoRedirectFlow, OfferFlow, Placement
+from app.domain.plan import GeoRedirectFlow, OfferFlow
 from app.domain.ports import CampaignState, CampaignSummary
-from tests.helpers import shares
+from tests.helpers import PLACEMENT, shares
 
 API = "/admin_api/v1"
-PLACEMENT = Placement(domain_id=1813, group_id=10332, traffic_source_id=836)
 
 # Сокращённые ответы живого Keitaro (проба 2026-11-20).
 DIRECTORIES = {
