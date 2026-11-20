@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: keitaro
     ports:
-      - '5432:5432'
+      # 5434 on the host: 5432 and 5433 are often taken by other local Postgres instances.
+      - '5434:5432'
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro

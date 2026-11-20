@@ -31,3 +31,7 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+# backend/alembic/ (migrations) shadows the alembic package for isort.
+known-third-party = ["alembic"]
